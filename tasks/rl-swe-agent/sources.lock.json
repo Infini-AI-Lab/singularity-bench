@@ -1,0 +1,66 @@
+{
+  "miles": {
+    "url": "https://github.com/radixark/miles.git",
+    "commit": "53f5d94224b7fc584857eb2aba68ffdd364dc139"
+  },
+  "harbor": {
+    "url": "https://github.com/harbor-framework/harbor.git",
+    "commit": "45ce769ae580ccd2a1f9adf174ee66b872a4052d",
+    "branch": "harbor-miles-v0.20.0"
+  },
+  "harbor-datasets": {
+    "url": "https://github.com/laude-institute/harbor-datasets.git",
+    "commit": "86723674f04e4209ac479d0fb75d9d9f44b4377e",
+    "note": "SWE-bench Verified tasks (datasets/swebench-verified) for the held-out evaluation"
+  },
+  "swe-bench": {
+    "url": "https://github.com/SWE-bench/SWE-bench.git",
+    "commit": "c7c22a916c9215e709722bc5ab18df4062dc6248",
+    "note": "Image recipe generator for the native ARM64 SWE-bench Verified images (arm64_tasks.py plan)"
+  },
+  "model": {
+    "id": "zai-org/GLM-4.7-Flash",
+    "revision": "7dd20894a642a0aa287e9827cb1a1f7f91386b67"
+  },
+  "runtime": {
+    "image": "radixark/miles@sha256:b8e4671c03adda98cc6165d5bbee3b322ce6baf7a8601dfe18a40da8bca376b8",
+    "amd64_manifest": "sha256:c227bfd33279b49ecad4e5a38351fdfd60b13d5f774df0da0bc0c896129911ad",
+    "arm64_manifest": "sha256:782782abd84530d50d6e23cb6f7495b00c581727c31a4de282d300baf4da5515",
+    "image_inputs": "866414f4e508ee2ce12ef294560689010642754952a6e9795fc8c800fd326776",
+    "note": "Multi-architecture image (CUDA 13, SGLang, Megatron-LM, PyTorch) used by the task runtime and the evaluation runtime; the digest pins the full binary stack."
+  },
+  "agent": {
+    "name": "mini-swe-agent",
+    "version": "2.4.6",
+    "note": "The scaffold of every episode, in training rollouts and in the held-out evaluation."
+  },
+  "dataset": {
+    "repo_id": "open-thoughts/OpenThoughts-Agent-v1-RL",
+    "revision": "39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f",
+    "split": "train",
+    "row_count": 728,
+    "files": {
+      "README.md": {
+        "bytes": 7419,
+        "sha256": "89a5aff5593fe351a30c18d3bc18177008108c5f88287976167ccfd4bd3a6768",
+        "url": "https://huggingface.co/datasets/open-thoughts/OpenThoughts-Agent-v1-RL/resolve/39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f/README.md"
+      },
+      "extract_parquet_tasks.py": {
+        "bytes": 5013,
+        "sha256": "b85522fd953b11152df11e3b8bd76bed6df9d1e930143dab5918578cd08a019f",
+        "url": "https://huggingface.co/datasets/open-thoughts/OpenThoughts-Agent-v1-RL/resolve/39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f/extract_parquet_tasks.py"
+      },
+      "tasks.parquet": {
+        "bytes": 10187380,
+        "sha256": "35decc7d89d852b80f2787f77ae5786d6065b4343d6ad90151fdd56f6f59092c",
+        "url": "https://huggingface.co/datasets/open-thoughts/OpenThoughts-Agent-v1-RL/resolve/39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f/tasks.parquet"
+      }
+    },
+    "description": "The 728-task release at this revision, prepared into a fixed split: 655 train, 73 held-out dev, and 8 training tasks listed as smoke.jsonl.",
+    "prepared_counts": {
+      "train": 655,
+      "dev": 73,
+      "smoke": 8
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "coding-agent-harness",
+  "workdir": "/app",
+  "write_roots": [
+    "/app/harness"
+  ],
+  "local_network": true,
+  "development_gateway": true
+}

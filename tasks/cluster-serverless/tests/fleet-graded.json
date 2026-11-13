@@ -1,0 +1,47 @@
+{
+ "fleet_id": "graded-1",
+ "seed": "graded-1",
+ "host": "simfleet",
+ "n_workers": 16,
+ "n_nodes": 4,
+ "host_ram_gib": 968.0,
+ "gpus_per_node": 4,
+ "controller": {
+  "host": "node0",
+  "port": 9000
+ },
+ "nodes": [
+  {
+   "name": "node0",
+   "host": "node0",
+   "port": 9100,
+   "n_gpus": 4,
+   "host_ram_gib": 968.0,
+   "speed": 0.989
+  },
+  {
+   "name": "node1",
+   "host": "node1",
+   "port": 9100,
+   "n_gpus": 4,
+   "host_ram_gib": 968.0,
+   "speed": 0.9749
+  },
+  {
+   "name": "node2",
+   "host": "node2",
+   "port": 9100,
+   "n_gpus": 4,
+   "host_ram_gib": 968.0,
+   "speed": 0.9139
+  },
+  {
+   "name": "node3",
+   "host": "node3",
+   "port": 9100,
+   "n_gpus": 4,
+   "host_ram_gib": 968.0,
+   "speed": 0.988
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1.7
+# Protected runtime for ONE downstream task image of the coding-agent-harness grid:
+#   docker build -f breakwater/cell/Dockerfile.overlay --build-arg TASK_BASE=<built task image> -t <cell image> breakwater
+# No author CLI is installed. Pre-baked agent harnesses and JavaScript runtimes are purged so a
+# submitted harness cannot hand the task to one; Python and the task's own toolchain are kept.
+# The stdio supervisor is compiled against an old glibc so it loads in every task base.
+FROM ubuntu:22.04 AS capture
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+COPY capture/stdio_capture.c capture/stdio_capture.h /src/
+RUN mkdir /out && gcc -Wall -Wextra -Werror -O2 -fPIC -shared /src/stdio_capture.c -o /out/stdio_capture.so
+
+ARG TASK_BASE
+FROM ${TASK_BASE}
+USER root
+COPY --from=capture /out/stdio_capture.so /opt/breakwater-runtime/stdio_capture.so
+COPY author/run_worker.py /opt/breakwater-runtime/run_worker.py
+COPY author/purge.py /tmp/breakwater-purge.py
+RUN python3 -I /tmp/breakwater-purge.py --task-container && rm /tmp/breakwater-purge.py \
+    && (getent group 1200 >/dev/null || groupadd --gid 1200 breakwater-shared) \
+    && (getent passwd 1101 >/dev/null || useradd --uid 1101 --gid 1200 --no-create-home --home-dir /tmp/worker \
+        --shell /usr/sbin/nologin breakwater-worker) \
+    && chmod 0755 /opt/breakwater-runtime \
+    && chmod 0644 /opt/breakwater-runtime/run_worker.py /opt/breakwater-runtime/stdio_capture.so \
+    && if [ -d /root/.cache/huggingface ]; then mkdir -p /opt/breakwater-hf-cache \
+         && cp -a /root/.cache/huggingface/. /opt/breakwater-hf-cache/ && rm -rf /root/.cache/huggingface \
+         && chmod -R a+rX /opt/breakwater-hf-cache; fi \
+    && for d in /opt/oracle-libs /opt/flashinfer-cubins; do if [ -e "$d" ]; then chown -R root:root "$d" && chmod 0700 "$d"; fi; done \
+    && mkdir -p /opt/breakwater-cell /opt/breakwater-worker /opt/environment-baseline \
+    && python3 -c "import ctypes; ctypes.CDLL('/opt/breakwater-runtime/stdio_capture.so').breakwater_capture_start"
+ENTRYPOINT []
+CMD ["sleep", "infinity"]

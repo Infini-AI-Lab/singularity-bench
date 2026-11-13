@@ -1,0 +1,55 @@
+{
+ "api_base": "https://api.fireworks.ai/inference/v1",
+ "drivers": {
+  "glm53": {
+   "model": "accounts/fireworks/models/glm-5p3",
+   "build_alias": "chat"
+  },
+  "kimi3": {
+   "model": "accounts/fireworks/models/kimi-k3",
+   "build_alias": "chat-b"
+  },
+  "minimax": {
+   "model": "accounts/fireworks/models/minimax-m3",
+   "build_alias": null
+  }
+ },
+ "embed_model": "accounts/fireworks/models/qwen3-embedding-8b",
+ "default_task_profile": "compact5-v1",
+ "task_profiles": {
+  "compact5-v1": [
+   "kernels/flash-attn-backward",
+   "kernels/nvfp4-gemm",
+   "kernels/mla-decode",
+   "pr-reproduction/pr-vllm-35022",
+   "pr-reproduction/pr-vllm-33698"
+  ]
+ },
+ "tasks": [
+  {
+   "group": "kernels",
+   "name": "flash-attn-backward",
+   "reward": "continuous"
+  },
+  {
+   "group": "kernels",
+   "name": "nvfp4-gemm",
+   "reward": "continuous"
+  },
+  {
+   "group": "kernels",
+   "name": "mla-decode",
+   "reward": "continuous"
+  },
+  {
+   "group": "pr-reproduction",
+   "name": "pr-vllm-35022",
+   "reward": "binary"
+  },
+  {
+   "group": "pr-reproduction",
+   "name": "pr-vllm-33698",
+   "reward": "binary"
+  }
+ ]
+}

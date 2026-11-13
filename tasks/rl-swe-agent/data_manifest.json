@@ -1,0 +1,21 @@
+{
+  "dataset": "open-thoughts/OpenThoughts-Agent-v1-RL",
+  "revision": "39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f",
+  "source_sha256": "35decc7d89d852b80f2787f77ae5786d6065b4343d6ad90151fdd56f6f59092c",
+  "original_rows": 728,
+  "seed": 42,
+  "dev_fraction": 0.1,
+  "counts": {
+    "train": 655,
+    "dev": 73,
+    "smoke": 8
+  },
+  "split_method": "normalized-instruction groups; SHA256(seed:group) order",
+  "prepared_file_sha256": {
+    "manifest.json": "15aa8416b5a56b1250ee645ccaef622b6907d3814882a15105448a6e9620dde5",
+    "train.jsonl": "ff16fb9fbab4c1cbb4983757ec112a17e7c7691b77662a7cb824fb11ff0a9084",
+    "dev.jsonl": "5823c760221ca99043385541c428c748284d1d6aaf8a29a303373e71d40ddab8",
+    "smoke.jsonl": "ccee96487d49536107fccf3bb3cfe499881d7d5c6750785a30414210ff53de81"
+  },
+  "normalized_instruction_groups": 728
+}

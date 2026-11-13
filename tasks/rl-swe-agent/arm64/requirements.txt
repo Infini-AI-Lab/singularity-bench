@@ -1,0 +1,4 @@
+# Build tooling only: use a separate host venv, never install over the trainer.
+swebench @ git+https://github.com/SWE-bench/SWE-bench.git@c7c22a916c9215e709722bc5ab18df4062dc6248
+# The pinned harness imports the synchronous ghapi API.
+ghapi<2

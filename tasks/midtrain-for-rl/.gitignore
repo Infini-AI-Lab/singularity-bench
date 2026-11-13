@@ -1,0 +1,14 @@
+# Prepared inputs (prepare.sh). Large, regenerable, and some are verifier-only.
+/artifacts/
+/data/
+/private/
+/.downloads/
+/.tools-venv/
+
+# Agent outputs inside a staged workspace.
+/out/
+/scratch/
+
+# Python byproducts.
+__pycache__/
+*.py[cod]

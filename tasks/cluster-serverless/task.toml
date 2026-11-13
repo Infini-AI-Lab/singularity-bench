@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+# Harbor task declaration. The task runs only under Breakwater (breakwater/run.py): its contract (stage budgets,
+# resources, workspace and submission mounts, fleet options) is breakwater.json, and tests/test.sh refuses any
+# other launch path. The GPUs are not in the task containers: they are the remote 16-GPU fleet (four nodes of
+# four GB300 GPUs) that bin/cluster.sh brings up before the run.
+
+[task]
+name = "singularity-bench/cluster-serverless"
+description = "Build a serverless inference orchestrator for 28 models on a 16-GPU GB300 fleet of four nodes, driven through the provided vLLM interface: placement, replica counts, tensor/pipeline/expert parallelism, colocation, model residency (deploy, sleep, wake, unload), admission and request routing. The agent starts from a naive control plane and has four hours. Grading replays three private load levels (0.75, 1.0 and 1.25 times a base rate) of mixed isolated, conversational and batch traffic; each cell's utility is strict SLO attainment times mean per-model completion, and the reward is the mean over the three cells."
+authors = []
+keywords = ["cluster", "serving", "inference", "scheduling", "caching", "slo", "vllm", "streaming", "multi-node", "gb300"]
+
+[metadata]
+author_name = "InfiniAILab"
+author_email = "yangzho6@andrew.cmu.edu"
+difficulty_explanation = "Build, within 4 hours and from a naive policy, the control plane that serves 28 models (about 5.4 TiB of weights, more than the fleet's serving memory) on 16 GB300 GPUs across four nodes; maximize strict SLO attainment times per-model completion under mixed online and batch traffic at three load levels"
+category = "Machine Learning Systems"
+tags = ["Cluster Management", "Serverless Inference", "vLLM", "Scheduling", "Multi-Node", "GB300"]
+
+[verifier]
+# The integrity judge's budget (judge_timeout_sec in breakwater.json). The verifier container is read-only and
+# has no GPU: it recomputes every cell's utility from the sealed driver records and the private traces, then
+# runs the integrity judge. The three graded cells run before it, in the intermediate container, within
+# evaluation_timeout_sec (six hours).
+environment_mode = "separate"
+timeout_sec = 10800.0
+
+[agent]
+# Four hours of development and experiments on the remote fleet.
+timeout_sec = 14400.0
+
+[environment]
+# The task runtime image (environment/Dockerfile). CPU only: the agent reaches the fleet over HTTP through
+# /app/fleet.json. Authoring gets 8 CPUs, 32 GiB and 512 processes (agent_resources in breakwater.json).
+docker_image = "cluster-serverless:local"
+build_timeout_sec = 3600.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 0

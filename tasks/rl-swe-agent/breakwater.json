@@ -1,0 +1,35 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "rl-swe-agent",
+  "kind": "rl",
+  "workdir": "/app",
+  "agent_timeout_sec": 43200.0,
+  "evaluation_timeout_sec": 16200,
+  "judge_timeout_sec": 10800,
+  "agent_deadline": "evaluate",
+  "failure_reward": 0.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "workspace_excludes": [
+    "/README.md",
+    "/evaluation",
+    "out",
+    "data",
+    "artifacts",
+    ".venv",
+    ".deps"
+  ],
+  "verifier_image": "rl-swe-agent-verifier:local",
+  "gpus": 4,
+  "gpu_name_patterns": [
+    "GB300"
+  ],
+  "gpu_type": "GB300",
+  "resources": {
+    "shm_size": "64g"
+  },
+  "review_profile": "indexed",
+  "sandbox_worker": {
+    "port": 11000,
+    "session_ports": "30000-30015"
+  }
+}

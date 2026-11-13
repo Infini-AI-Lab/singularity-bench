@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+# Final verifier for ONE downstream task's cells (coding-agent-harness grid):
+#   docker build -f breakwater/cell/Dockerfile.verifier --build-arg TASK_BASE=<cell image> \
+#     --build-context task=tasks/coding-agent-harness/eval/e2e_tasks/<group>/<task> \
+#     -t <task>-cell-verifier:local breakwater
+ARG TASK_BASE
+ARG TARGETARCH
+# Pinned, static Codex for the judge, one artifact per architecture (GB300 hosts are arm64); no package
+# resolver changes the numerical stack.
+FROM scratch AS codex-amd64
+ADD --checksum=sha256:62659fefd9a8efa21a496402fde3c11c025bbeee735a582968f8ffd14cb5f79c https://registry.npmjs.org/@openai/codex/-/codex-0.164.0-linux-x64.tgz /codex.tgz
+FROM scratch AS codex-arm64
+ADD --checksum=sha256:048a62731ce28aa000508efcc032302e58488ca079970dcae06d28df39ae5ce0 https://registry.npmjs.org/@openai/codex/-/codex-0.164.0-linux-arm64.tgz /codex.tgz
+FROM codex-${TARGETARCH} AS codex
+
+FROM ${TASK_BASE}
+USER root
+COPY . /opt/breakwater
+COPY cell-pipeline.json /trusted-task/breakwater.json
+COPY --from=task tests /tests
+COPY --from=task instruction.md /trusted-task/instruction.md
+COPY downstream/cell_judge.md /trusted-task/tests/submission_judge.md
+COPY --from=codex /codex.tgz /tmp/codex.tgz
+RUN case "$(uname -m)" in \
+      x86_64) triple=x86_64-unknown-linux-musl \
+              codex_sha=b93f6811d3f653f0fb83be4050d857fb9abbb111dfa2ce160563327daff7f306 \
+              bwrap_sha=3a81c19ad10a70436529c58e77898e2a447abe80167f813fc20ec34bd9eafdeb ;; \
+      aarch64) triple=aarch64-unknown-linux-musl \
+               codex_sha=8813c8d8a4cea2eeba271b72ab22f49628b184b24ab18dbef06b4ce41e9a8d39 \
+               bwrap_sha=0d784834f1674ff02aee25b42f2cbcfd27c5305863806cd6475d0eac8e33c378 ;; \
+      *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;; \
+    esac \
+    && tar -xzf /tmp/codex.tgz -C /opt/breakwater --strip-components=4 "package/vendor/$triple/bin/codex" \
+    && tar -xzf /tmp/codex.tgz -C /opt/breakwater --strip-components=3 "package/vendor/$triple/codex-resources/bwrap" \
+    && echo "$codex_sha  /opt/breakwater/codex" | sha256sum -c - \
+    && echo "$bwrap_sha  /opt/breakwater/codex-resources/bwrap" | sha256sum -c - \
+    && /opt/breakwater/codex -c features.shell_tool=false -c features.multi_agent=false features list > /tmp/judge-features \
+    && grep -Eq '^shell_tool[[:space:]].*[[:space:]]false$' /tmp/judge-features \
+    && grep -Eq '^multi_agent[[:space:]].*[[:space:]]false$' /tmp/judge-features \
+    && rm -rf /tmp/codex.tgz /tmp/judge-features /opt/breakwater/tests \
+    && mkdir -p /reports /submission
+USER 1102:1102
+WORKDIR /tmp
+ENTRYPOINT []
+CMD ["sleep", "infinity"]

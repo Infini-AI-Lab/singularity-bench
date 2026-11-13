@@ -1,0 +1,36 @@
+schema_version = "1.1"
+
+# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
+# and verifier.timeout_sec (the time limit of the grading stage).
+
+[task]
+name = "singularity-bench/pr-vllm-35022"
+description = "Reproduce-a-PR task: in a checkout of vLLM staged at the commit BEFORE PR #35022, implement support for structured outputs (grammar / JSON-schema-constrained decoding) in offline beam search. At the parent commit `LLM.beam_search()` ignores any structured-outputs constraint and emits free-form text; the goal is to make beam search honor a `StructuredOutputsParams` (e.g. a JSON schema) so every returned beam is schema-valid. Graded on the PR's own regression check (beam search with a JSON schema must return valid JSON for every beam). Single GPU; the repo is installed editable with precompiled kernels (Python edits are live, no CUDA rebuild); a small chat model is cached locally; fully offline."
+keywords = ["pr-reproduction", "vllm", "beam-search", "structured-outputs", "grammar", "xgrammar", "gpu"]
+
+[metadata]
+suite = "singularity-bench/coding-agent-harness"
+group = "pr-reproduction"
+difficulty = "hard"
+category = "bug-fixing"
+tags = ["pr-reproduction", "vllm", "feature", "beam-search", "structured-outputs", "gpu", "real-world", "offline"]
+
+[verifier]
+# Time limit of the grading stage, which runs the structured-output beam search once on the cached model.
+environment_mode = "separate"
+timeout_sec = 1800.0
+
+[agent]
+# The submitted harness's wall clock on this task: four hours.
+timeout_sec = 14400.0
+
+[environment]
+# Built from environment/Dockerfile. One GPU. TinyLlama-1.1B-Chat is baked into the image so the graded check
+# (and the harness's own iteration) can run beam search offline.
+docker_image = "pr-vllm-35022:local"
+build_timeout_sec = 3600.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 1

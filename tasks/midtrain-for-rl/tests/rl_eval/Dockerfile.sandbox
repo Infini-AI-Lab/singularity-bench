@@ -1,0 +1,7 @@
+# CPU-only generated-code execution image. The service freezes its built image ID.
+FROM python:3.12.11-slim-bookworm
+# Expanded functional tests depend on NumPy. Keep it inside the CPU sandbox.
+RUN python3 -m pip install --no-cache-dir numpy==1.26.4
+USER 65534:65534
+WORKDIR /tmp
+ENTRYPOINT []

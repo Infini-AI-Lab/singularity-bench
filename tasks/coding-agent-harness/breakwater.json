@@ -1,0 +1,29 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "coding-agent-harness",
+  "kind": "harness",
+  "workdir": "/app",
+  "agent_timeout_sec": 21600.0,
+  "evaluation_timeout_sec": 3600,
+  "judge_timeout_sec": 10800,
+  "agent_deadline": "evaluate",
+  "failure_reward": 0.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "workspace_excludes": [],
+  "verifier_image": "coding-agent-harness-verifier:local",
+  "gpus": 1,
+  "gpu_name_patterns": ["GB300"],
+  "gpu_type": "GB300",
+  "workspace_source": "image",
+  "resources": {"cpus": 4, "memory_mb": 16384, "shm_size": "2g"},
+  "shadow_policy": {"extra_packages": ["pytest", "_pytest", "pluggy", "einops"]},
+  "protected_workspace_paths": ["spec", "smoke", "examples", "selfcheck.py", "harness_api.py"],
+  "review_profile": "indexed",
+  "development_gateway": {
+    "upstream": "https://api.fireworks.ai/inference/v1",
+    "chat_models": {"chat": "accounts/fireworks/models/glm-5p3", "chat-b": "accounts/fireworks/models/kimi-k3"},
+    "embed_model": "accounts/fireworks/models/qwen3-embedding-8b",
+    "max_chat_tokens": 5000000,
+    "max_embed_tokens": 20000000
+  }
+}

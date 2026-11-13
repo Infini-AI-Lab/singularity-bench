@@ -1,0 +1,9 @@
+{
+  "name": "midtrain-for-rl",
+  "workdir": "/app",
+  "write_roots": [
+    "/app"
+  ],
+  "local_network": true,
+  "development_gateway": false
+}

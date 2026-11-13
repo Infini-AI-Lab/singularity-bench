@@ -1,0 +1,8 @@
+ARG TASK_BASE
+FROM ${TASK_BASE}
+USER root
+COPY stdio_capture.c stdio_capture.h /src/
+RUN gcc -Wall -Wextra -Werror -O2 -fPIC -shared /src/stdio_capture.c -o /opt/stdio_capture.so
+COPY gpu_fixture.py /opt/gpu_fixture.py
+ENTRYPOINT []
+CMD ["sleep", "infinity"]

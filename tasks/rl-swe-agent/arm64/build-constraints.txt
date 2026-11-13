@@ -1,0 +1,8 @@
+# Build tools no newer than the published SWE-bench images were built with. The upstream
+# recipes leave them unpinned, and current releases drop what those recipes rely on:
+# pip 25+ (--no-use-pep517, setup.py develop editables), setuptools 80+ (pkg_resources),
+# setuptools_scm 9+ (renamed version schemes warn at matplotlib import and fail its tests).
+# Cython is pinned per environment instead: lxml 6 sdists need Cython 3 in their build env.
+pip<25
+setuptools<80
+setuptools_scm<8.2

@@ -1,0 +1,9 @@
+{
+  "name": "serve-glm53-flash",
+  "workdir": "/app",
+  "write_roots": [
+    "/app"
+  ],
+  "local_network": true,
+  "development_gateway": false
+}

@@ -1,0 +1,10 @@
+.deps
+.venv
+__pycache__
+.pytest_cache
+*.egg-info
+data
+out
+artifacts
+evaluation
+README.md

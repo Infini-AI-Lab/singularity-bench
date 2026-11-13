@@ -1,0 +1,24 @@
+{
+  "tasks": {
+    "astropy__astropy-13398": "task-data bug: the gold patch fails on x86 too (the gold patch adds a new module; test.sh runs git clean -fd, which deletes it before testing)",
+    "astropy__astropy-7606": "task-data bug: the gold patch fails on x86 too (expects test id test_compose_roundtrip[], pytest 3.3.1 collects [unit0], same pytest/Python as the x86 image)",
+    "django__django-10097": "reference solution fails on aarch64: FAIL_TO_PASS AuthTemplateTests raise TemplateDoesNotExist, unrelated to the validators-only patch; not verifiable on x86 here (no emulation)",
+    "matplotlib__matplotlib-20826": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-22865": "reference solution fails only PASS_TO_PASS image comparisons (test_colorbar.py::test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-23314": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-23476": "reference solution fails only PASS_TO_PASS image comparisons (test_subfigure_ss[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-24026": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-24149": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-24177": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-24627": "reference solution fails only PASS_TO_PASS image comparisons (test_imshow_clip[png,pdf], test_contour_colorbar[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-24870": "reference solution fails only PASS_TO_PASS image comparisons (test_contour_addlines[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-26113": "reference solution fails only PASS_TO_PASS image comparisons (test_preset_clip_paths[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "matplotlib__matplotlib-26208": "reference solution fails only PASS_TO_PASS image comparisons (test_contour_colorbar[pdf], test_preset_clip_paths[png]) that the patch does not touch: aarch64 rasterization differs from x86 within a small RMS, so no submission can resolve the task",
+    "pydata__xarray-3305": "grades cdms2 tests; cdms2/cdtime have no aarch64 build",
+    "pydata__xarray-4356": "PASS_TO_PASS test_datetime_mean[False,True] is marked xfail \"expected failure on ARM\" in the repository; it passes on aarch64, pytest reports XPASS, and the SWE-bench log parser does not count XPASS as passed",
+    "pydata__xarray-4695": "grades cdms2 tests; cdms2/cdtime have no aarch64 build",
+    "pydata__xarray-6992": "grades cdms2 tests; cdms2/cdtime have no aarch64 build",
+    "sphinx-doc__sphinx-8595": "task-data bug: the gold patch fails on x86 too (test.sh checks out the base tox.ini, reverting -rA, so the log parser sees no per-test results; same on the x86 image)",
+    "sphinx-doc__sphinx-9711": "task-data bug: the gold patch fails on x86 too (test.sh checks out the base tox.ini, reverting -rA, so the log parser sees no per-test results; same on the x86 image)"
+  }
+}

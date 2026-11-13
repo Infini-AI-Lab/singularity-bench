@@ -1,0 +1,38 @@
+schema_version = "1.1"
+
+# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
+# and verifier.timeout_sec (the time limit of the grading stage).
+
+[task]
+name = "singularity-bench/pr-vllm-33698"
+description = "Reproduce-a-PR task: in a checkout of vLLM staged at the commit BEFORE PR #33698, fix pipeline-parallel KV-cache memory validation. At the parent commit, `get_kv_cache_configs` sizes each PP worker as if it held ALL layers (over-counting KV-cache memory by ~num-PP-stages), causing a spurious OOM / rejecting a max_model_len that comfortably fits, and one worker's available memory wrongly influences another worker's config. The goal is per-worker validation: each pipeline stage is sized only for its own layer subset and its own available memory, independent of the others. Graded on the PR's own regression check (a 2-stage PP layout must produce correct, independent per-worker KV-cache configs). CPU-only pure-Python fix (editable install, no CUDA rebuild); fully offline."
+keywords = ["pr-reproduction", "vllm", "kv-cache", "pipeline-parallel", "memory-validation", "cpu"]
+
+[metadata]
+suite = "singularity-bench/coding-agent-harness"
+group = "pr-reproduction"
+difficulty = "medium"
+category = "bug-fixing"
+tags = ["pr-reproduction", "vllm", "bugfix", "kv-cache", "pipeline-parallel", "distributed", "real-world", "offline"]
+
+[verifier]
+# Time limit of the grading stage, which computes two KV-cache configurations (no model weights are loaded).
+environment_mode = "separate"
+timeout_sec = 900.0
+
+[agent]
+# The submitted harness's wall clock on this task: four hours.
+timeout_sec = 14400.0
+
+[environment]
+# Built from environment/Dockerfile. The fix and the grading run no CUDA kernels (KV-cache config arithmetic),
+# but vLLM's VllmConfig infers the device type at construction and fails without a visible GPU, so one GPU is
+# required. Qwen3-0.6B's config and tokenizer (not its weights) are baked into the image so the graded check's
+# ModelConfig() resolves offline.
+docker_image = "pr-vllm-33698:local"
+build_timeout_sec = 3600.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 1

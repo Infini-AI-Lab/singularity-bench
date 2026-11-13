@@ -1,0 +1,53 @@
+schema_version = "1.1"
+
+# Harbor task declaration. The task runs only under Breakwater (breakwater/run.py): its contract (stage budgets,
+# GPUs, resources, workspace and submission mounts) is breakwater.json, and tests/test.sh refuses any other
+# launch path.
+
+[task]
+name = "singularity-bench/serve-glm53-flash"
+description = "Build an FP8 inference engine for zai-org/GLM-5.3-Flash on four GB300 GPUs (compute capability 10.3, Grace ARM64 CPU, CUDA 13.0) that earns as much simulated income as possible serving replayed coding-agent traffic. GLM-5.3-Flash is a mixture-of-experts reasoning model with about 320B total and 17B active parameters (glm5_next: 34 linear-attention and 11 DeepSeek sparse-attention layers, 288 routed experts with top-8 routing plus a shared expert; FP8 e4m3 weights of about 328 GB, mounted read-only at /models/GLM-5.3-Flash), so a server must shard it across the four GPUs. The agent starts from a naive but correct transformers server in /app, with torch, transformers and triton but no serving framework (no vLLM, SGLang, FlashInfer or flash-attn) and no internet, and delivers /app/serve.sh, which must start an OpenAI-compatible /v1/completions server on port 8000. Score: the agent-visible /app/simulator.py, run by the grader on a hidden seed, replays the AgentX corpus (393 recorded Claude Code sessions) on 16 closed-loop session lanes for a 900 s window plus up to 300 s of drain; completed requests are billed at USD 0.09 per million input tokens (cached input at the same price) and USD 0.30 per million output tokens, and the reward is that income divided by 4 GPUs x 900 s, in USD per GPU-hour. The reward is 0 unless at least one request succeeds, at most max(1, floor(0.01 x finished)) finished requests fail (ignore_eos enforced), and accuracy on 500 held-out MATH-500 prompts reaches 0.95 x 0.928. ignore_eos must be honest: tokens past EOS come from the same code path as the tokens before it, and the integrity judge reads the delivered /app for this."
+authors = []
+keywords = [
+  "mle", "llm-serving", "transformers", "agentic", "agentx", "income", "prefix-caching", "long-context",
+  "inference", "gpu", "from-scratch", "gb300", "grace-blackwell", "blackwell-ultra", "sm_103", "aarch64",
+  "multi-gpu", "tensor-parallel", "fp8", "moe", "hybrid-attention",
+]
+
+[metadata]
+suite = "singularity-bench"
+group = "llm-serving"
+level = "1.0"
+difficulty = "hard"
+category = "mle"
+tags = [
+  "mle", "llm-serving", "inference", "agentic", "income", "gpu", "real-world", "from-scratch", "gb300",
+  "grace-blackwell", "aarch64", "multi-gpu", "fp8",
+]
+
+[verifier]
+# The integrity judge's budget (judge_timeout_sec in breakwater.json). The verifier container is read-only and
+# has no GPU: it checks the seals and logs, recomputes the income and both gates from the sealed raw outputs,
+# then runs the integrity judge. Grading itself runs before it, in the intermediate container.
+timeout_sec = 10800.0
+
+[agent]
+# 12 h. instruction.md states the same budget (43200 s) and asks the agent to stop starting new experiments
+# past 90% (38880 s).
+timeout_sec = 43200.0
+
+[environment]
+# The task runtime image (prepare.sh). The ~328 GB checkpoint is mounted read-only at /models/GLM-5.3-Flash
+# rather than built into the image.
+docker_image = "serve-glm53-flash:local"
+build_timeout_sec = 7200.0
+# A GB300 NVL72 rack has 2,592 Arm Neoverse V2 cores and 17 TB of LPDDR5X for 72 GPUs, i.e. about 36 cores and
+# 236 GB of host memory per GPU. memory_mb covers loading the ~328 GB FP8 checkpoint through host memory and
+# host-side KV or prefix-cache offload; storage_mb leaves room for one re-saved copy of the weights under /app
+# plus profiles and compile caches. instruction.md tells the agent to read its real budget with `nproc` and
+# `free -g`.
+cpus = 16
+memory_mb = 524288
+storage_mb = 1048576
+gpus = 4
+gpu_types = ["GB300"]

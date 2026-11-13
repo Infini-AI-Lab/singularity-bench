@@ -1,0 +1,3888 @@
+{
+ "service_tiers": {
+  "standard": {
+   "ttft_mult": 1.0,
+   "tpot_mult": 1.0,
+   "share": 1.0
+  }
+ },
+ "n_gpus": 16,
+ "gpu_gib": 288.0,
+ "usable_util_per_gpu": 0.9,
+ "fleet_capacity_units": 14.4,
+ "demanded_units": 23.0,
+ "oversubscription": 1.597,
+ "host_ram_gib": 3872.0,
+ "host_ram_demanded_gib": 8860.3,
+ "host_ram_oversubscription": 2.288,
+ "dropped_tiers": [
+  "frontier",
+  "large"
+ ],
+ "schema_version": 2,
+ "slo_scope": "model",
+ "selection": {
+  "algorithm": "size-band-round-robin-v1",
+  "target_gpu_oversubscription": 1.45,
+  "disk_budget_tib": 5.75,
+  "max_models": 32,
+  "max_gpus_per_model": 4,
+  "checkpoint_gib": 5520.1
+ },
+ "models": [
+  {
+   "id": "llama-3.2-1b-instruct",
+   "tier": "tiny",
+   "checkpoint": "meta-llama/Llama-3.2-1B-Instruct",
+   "checkpoint_revision": "9213176726f574b556790deb65791e0c5aa438b6",
+   "weights_gib": 2.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 1.9,
+   "is_moe": false,
+   "serving_active_gib": 2.3,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 2048,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 16,
+    "num_key_value_heads": 8,
+    "vocab_size": 128256
+   },
+   "min_util": 0.04,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.009094150817450955,
+   "local_dir": "llama-3.2-1b-instruct",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 1.0,
+   "expected_share": 0.009094,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3.5-9b",
+   "tier": "tiny",
+   "checkpoint": "Qwen/Qwen3.5-9B",
+   "checkpoint_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+   "weights_gib": 18.0,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 16.8,
+   "is_moe": false,
+   "serving_active_gib": 18.0,
+   "architecture": {
+    "head_dim": 256,
+    "hidden_size": 4096,
+    "layer_types": [
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention"
+    ],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 32,
+    "linear_value_head_dim": 128,
+    "mamba_ssm_dtype": "float32",
+    "model_type": "qwen3_5_text",
+    "num_attention_heads": 16,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 4,
+    "vocab_size": 248320
+   },
+   "min_util": 0.101,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.01818830163490191,
+   "local_dir": "qwen3.5-9b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12,
+   "n_providers": 6.0,
+   "expected_share": 0.018188,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "qwen3-5-9b",
+    "tokenizer_ratio": 1.0673747855216928
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "llama-3.3-70b-instruct",
+   "tier": "mid",
+   "checkpoint": "meta-llama/Llama-3.3-70B-Instruct",
+   "checkpoint_revision": "6f6073b423013f6a7d4d9f39144961bfbfbc386b",
+   "weights_gib": 131.4,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 130.4,
+   "is_moe": false,
+   "serving_active_gib": 131.4,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 8192,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 64,
+    "num_hidden_layers": 80,
+    "num_key_value_heads": 8,
+    "vocab_size": 128256
+   },
+   "min_util": 0.542,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.03637660326980382,
+   "local_dir": "llama33-70b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 25.0,
+   "n_providers": 13.0,
+   "expected_share": 0.036377,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "llama-3-3-instruct-70b",
+    "tokenizer_ratio": 1.0020589917476919
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "kimi-k2.6",
+   "tier": "frontier",
+   "checkpoint": "moonshotai/Kimi-K2.6",
+   "checkpoint_revision": "7eb5002f6aadc958aed6a9177b7ed26bb94011bb",
+   "weights_gib": 554.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 17.3,
+   "is_moe": true,
+   "serving_active_gib": 17.3,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 7168,
+    "kv_lora_rank": 512,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "deepseek_v3",
+    "n_routed_experts": 384,
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 61,
+    "num_key_value_heads": 64,
+    "qk_rope_head_dim": 64,
+    "vocab_size": 163840
+   },
+   "min_util": 0.57,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "reason/deepseek-r1",
+   "popularity_weight": 0.12731811144431338,
+   "local_dir": "kimi-k2.6",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 21.0,
+   "expected_share": 0.127318,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "gpt-oss-20b",
+   "tier": "small",
+   "checkpoint": "openai/gpt-oss-20b",
+   "checkpoint_revision": "6cee5e81ee83917806bbde320786a8fb61efebee",
+   "weights_gib": 12.8,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 4.4,
+   "is_moe": true,
+   "serving_active_gib": 4.4,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 2880,
+    "layer_types": [
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention"
+    ],
+    "model_type": "gpt_oss",
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 4,
+    "num_hidden_layers": 24,
+    "num_key_value_heads": 8,
+    "num_local_experts": 32,
+    "sliding_window": 128,
+    "vocab_size": 201088
+   },
+   "min_util": 0.081,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.04243937048143779,
+   "local_dir": "gpt-oss-20b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 13.0,
+   "expected_share": 0.042439,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "gpt-oss-20b",
+    "tokenizer_ratio": 1.0
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "gemma-4-31b-it",
+   "tier": "small",
+   "checkpoint": "google/gemma-4-31B-it",
+   "checkpoint_revision": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+   "weights_gib": 58.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 57.8,
+   "is_moe": false,
+   "serving_active_gib": 58.3,
+   "architecture": {
+    "attention_k_eq_v": true,
+    "head_dim": 256,
+    "hidden_size": 5376,
+    "layer_types": [
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention"
+    ],
+    "model_type": "gemma4_text",
+    "num_attention_heads": 32,
+    "num_experts": null,
+    "num_hidden_layers": 60,
+    "num_key_value_heads": 16,
+    "num_kv_shared_layers": 0,
+    "per_layer_config": {
+     "05": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "11": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "17": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "23": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "29": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "35": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "41": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "47": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "53": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     },
+     "59": {
+      "head_dim": 512,
+      "num_key_value_heads": 4
+     }
+    },
+    "sliding_window": 1024,
+    "top_k_experts": null,
+    "vocab_size": 262144
+   },
+   "min_util": 0.258,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.06365905572215669,
+   "local_dir": "gemma-4-31b-it",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 26,
+   "n_providers": 15.0,
+   "expected_share": 0.063659,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "gemma-4-31b",
+    "tokenizer_ratio": 1.0895824822289402
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 26.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 26.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 26.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 26.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 26.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "voxtral-small-24b-2507",
+   "tier": "small",
+   "checkpoint": "mistralai/Voxtral-Small-24B-2507",
+   "checkpoint_revision": "da5b42409f279fdd92febee0511a6c32828569c1",
+   "weights_gib": 90.4,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 89.4,
+   "is_moe": false,
+   "serving_active_gib": 90.4,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 5120,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 40,
+    "num_key_value_heads": 8,
+    "sliding_window": null,
+    "vocab_size": 131072
+   },
+   "min_util": 0.383,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.011071140125592467,
+   "local_dir": "voxtral-small-24b-2507",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 18.0,
+   "n_providers": 3.0,
+   "expected_share": 0.011071,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "kimi-k2.7-code",
+   "tier": "frontier",
+   "checkpoint": "moonshotai/Kimi-K2.7-Code",
+   "checkpoint_revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+   "weights_gib": 554.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 17.3,
+   "is_moe": true,
+   "serving_active_gib": 17.3,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 7168,
+    "kv_lora_rank": 512,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "deepseek_v3",
+    "n_routed_experts": 384,
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 61,
+    "num_key_value_heads": 64,
+    "qk_rope_head_dim": 64,
+    "vocab_size": 163840
+   },
+   "min_util": 0.57,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "reason/deepseek-r1",
+   "popularity_weight": 0.05092724457772536,
+   "local_dir": "kimi-k2.7-code",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 15.0,
+   "expected_share": 0.050927,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "llama-3.2-3b-instruct",
+   "tier": "tiny",
+   "checkpoint": "meta-llama/Llama-3.2-3B-Instruct",
+   "checkpoint_revision": "0cb88a4f764b7a12671c53f0838cd831a0843b95",
+   "weights_gib": 6.0,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 5.6,
+   "is_moe": false,
+   "serving_active_gib": 6.0,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 3072,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 24,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 8,
+    "vocab_size": 128256
+   },
+   "min_util": 0.055,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.010609842620359447,
+   "local_dir": "llama-3.2-3b-instruct",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 2.0,
+   "expected_share": 0.01061,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3.8-27b",
+   "tier": "small",
+   "checkpoint": "Qwen/Qwen3.8-27B",
+   "checkpoint_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+   "weights_gib": 51.7,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 50.2,
+   "is_moe": false,
+   "serving_active_gib": 51.7,
+   "architecture": {
+    "head_dim": 256,
+    "hidden_size": 5120,
+    "layer_types": [
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention"
+    ],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 48,
+    "linear_value_head_dim": 128,
+    "mamba_ssm_dtype": "float32",
+    "model_type": "qwen3_5_text",
+    "num_attention_heads": 24,
+    "num_hidden_layers": 64,
+    "num_key_value_heads": 4,
+    "vocab_size": 248320
+   },
+   "min_util": 0.232,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.031829527861078344,
+   "local_dir": "qwen3.8-27b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 20,
+   "n_providers": 13.0,
+   "expected_share": 0.03183,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "qwen3-8-27b",
+    "tokenizer_ratio": 1.0673747855216928
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 20.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 20.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 20.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 20.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 20.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3-next-80b-a3b-instruct",
+   "tier": "mid",
+   "checkpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+   "checkpoint_revision": "9c7f2fbe84465e40164a94cc16cd30b6999b0cc7",
+   "weights_gib": 151.5,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 5.6,
+   "is_moe": true,
+   "serving_active_gib": 5.6,
+   "architecture": {
+    "head_dim": 256,
+    "hidden_size": 2048,
+    "layer_types": [
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention"
+    ],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 32,
+    "linear_value_head_dim": 128,
+    "model_type": "qwen3_next",
+    "num_attention_heads": 16,
+    "num_experts": 512,
+    "num_experts_per_tok": 10,
+    "num_hidden_layers": 48,
+    "num_key_value_heads": 2,
+    "vocab_size": 151936
+   },
+   "min_util": 0.62,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.015914763930539172,
+   "local_dir": "qwen3-next-80b-a3b-instruct",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 5.0,
+   "expected_share": 0.015915,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "qwen3-next-80b-a3b-instruct",
+    "tokenizer_ratio": 1.036751368575864
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3-235b-a22b-2507",
+   "tier": "large",
+   "checkpoint": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+   "checkpoint_revision": "ac9c66cc9b46af7306746a9250f23d47083d689e",
+   "weights_gib": 437.9,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 41.0,
+   "is_moe": true,
+   "serving_active_gib": 41.0,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "qwen3_moe",
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 94,
+    "num_key_value_heads": 4,
+    "num_local_experts": 128,
+    "sliding_window": null,
+    "vocab_size": 151936
+   },
+   "min_util": 0.883,
+   "min_tp": 2,
+   "tp": 2,
+   "gpus": 2,
+   "servegen_class": "language/m-large",
+   "popularity_weight": 0.02829291365429186,
+   "local_dir": "qwen3-235b-a22b-instruct-2507",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 11.0,
+   "expected_share": 0.028293,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "hy-mt2-1.8b",
+   "tier": "tiny",
+   "checkpoint": "tencent/Hy-MT2-1.8B",
+   "checkpoint_revision": "9a341cd1b679d3efd23b46e847b01745a71ed792",
+   "weights_gib": 3.8,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 3.4,
+   "is_moe": false,
+   "serving_active_gib": 3.8,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 2048,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "hunyuan_v1_dense",
+    "num_attention_heads": 16,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 4,
+    "vocab_size": 120818
+   },
+   "min_util": 0.046,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.009430971218097287,
+   "local_dir": "hy-mt2-1.8b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 1.0,
+   "expected_share": 0.009431,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "gemma-4-26b-a4b-it",
+   "tier": "small",
+   "checkpoint": "google/gemma-4-26B-A4B-it",
+   "checkpoint_revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+   "weights_gib": 48.1,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 7.5,
+   "is_moe": true,
+   "serving_active_gib": 7.5,
+   "architecture": {
+    "attention_k_eq_v": true,
+    "head_dim": 256,
+    "hidden_size": 2816,
+    "layer_types": [
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "sliding_attention",
+     "full_attention"
+    ],
+    "model_type": "gemma4_text",
+    "num_attention_heads": 16,
+    "num_experts": 128,
+    "num_hidden_layers": 30,
+    "num_key_value_heads": 8,
+    "num_kv_shared_layers": 0,
+    "per_layer_config": {
+     "05": {
+      "head_dim": 512,
+      "num_key_value_heads": 2
+     },
+     "11": {
+      "head_dim": 512,
+      "num_key_value_heads": 2
+     },
+     "17": {
+      "head_dim": 512,
+      "num_key_value_heads": 2
+     },
+     "23": {
+      "head_dim": 512,
+      "num_key_value_heads": 2
+     },
+     "29": {
+      "head_dim": 512,
+      "num_key_value_heads": 2
+     }
+    },
+    "sliding_window": 1024,
+    "top_k_experts": 8,
+    "vocab_size": 262144
+   },
+   "min_util": 0.218,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.023148747535329705,
+   "local_dir": "gemma-4-26b-a4b-it",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 11,
+   "n_providers": 9.0,
+   "expected_share": 0.023149,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "gemma-4-26b-a4b-non-reasoning",
+    "tokenizer_ratio": 1.0895824822289402
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 11.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 11.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 11.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 11.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 11.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "mistral-small-3.2-24b-instruct",
+   "tier": "small",
+   "checkpoint": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+   "checkpoint_revision": "95a6d26c4bfb886c58daf9d3f7332c857cb27b43",
+   "weights_gib": 89.4,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 89.4,
+   "is_moe": false,
+   "serving_active_gib": 89.4,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 5120,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "mistral",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 40,
+    "num_key_value_heads": 8,
+    "sliding_window": null,
+    "vocab_size": 131072
+   },
+   "min_util": 0.379,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.01018544891554507,
+   "local_dir": "mistral-small-3.2-24b-instruct-2506",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 18.0,
+   "n_providers": 2.0,
+   "expected_share": 0.010185,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "deepseek-v3.2",
+   "tier": "frontier",
+   "checkpoint": "deepseek-ai/DeepSeek-V3.2",
+   "checkpoint_revision": "a7e62ac04ecb2c0a54d736dc46601c5606cf10a6",
+   "weights_gib": 642.1,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 34.7,
+   "is_moe": true,
+   "serving_active_gib": 34.7,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 7168,
+    "index_head_dim": 128,
+    "index_n_heads": 64,
+    "kv_lora_rank": 512,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "deepseek_v3",
+    "n_routed_experts": 256,
+    "num_attention_heads": 128,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 61,
+    "num_key_value_heads": 128,
+    "qk_rope_head_dim": 64,
+    "vocab_size": 129280
+   },
+   "min_util": 0.656,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "language/m-large",
+   "popularity_weight": 0.08487874096287558,
+   "local_dir": "deepseek-v3.2",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 18.0,
+   "n_providers": 15.0,
+   "expected_share": 0.084879,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "ministral-3b-2512",
+   "tier": "tiny",
+   "checkpoint": "mistralai/Ministral-3-3B-Instruct-2512",
+   "checkpoint_revision": "b35d4dfe56c142746f54dbd64f579faab2744308",
+   "weights_gib": 8.7,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 6.8,
+   "is_moe": false,
+   "serving_active_gib": 8.7,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 3072,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "ministral3",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 26,
+    "num_key_value_heads": 8,
+    "sliding_window": null,
+    "vocab_size": 131072
+   },
+   "min_util": 0.065,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.01212553442326794,
+   "local_dir": "ministral-3-3b-instruct-2512",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 3.0,
+   "expected_share": 0.012126,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "ministral-3-3b",
+    "tokenizer_ratio": 1.0739276084647438
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "gpt-oss-120b",
+   "tier": "mid",
+   "checkpoint": "openai/gpt-oss-120b",
+   "checkpoint_revision": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+   "weights_gib": 60.8,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 5.3,
+   "is_moe": true,
+   "serving_active_gib": 5.3,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 2880,
+    "layer_types": [
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention",
+     "sliding_attention",
+     "full_attention"
+    ],
+    "model_type": "gpt_oss",
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 4,
+    "num_hidden_layers": 36,
+    "num_key_value_heads": 8,
+    "num_local_experts": 128,
+    "sliding_window": 128,
+    "vocab_size": 201088
+   },
+   "min_util": 0.268,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.25463622288862675,
+   "local_dir": "gpt-oss-120b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 22.0,
+   "expected_share": 0.254636,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "gpt-oss-120b",
+    "tokenizer_ratio": 1.0
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3.5-122b-a10b",
+   "tier": "mid",
+   "checkpoint": "Qwen/Qwen3.5-122B-A10B",
+   "checkpoint_revision": "dc4d348443bc740c68e2d77492492c11606384d5",
+   "weights_gib": 233.0,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 18.6,
+   "is_moe": true,
+   "serving_active_gib": 18.6,
+   "architecture": {
+    "head_dim": 256,
+    "hidden_size": 3072,
+    "layer_types": [
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention"
+    ],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 64,
+    "linear_value_head_dim": 128,
+    "mamba_ssm_dtype": "float32",
+    "model_type": "qwen3_5_moe_text",
+    "num_attention_heads": 32,
+    "num_experts": 256,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 48,
+    "num_key_value_heads": 2,
+    "vocab_size": 248320
+   },
+   "min_util": 0.484,
+   "min_tp": 2,
+   "tp": 2,
+   "gpus": 2,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.01497860134638981,
+   "local_dir": "qwen3.5-122b-a10b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 5.0,
+   "expected_share": 0.014979,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "qwen3-5-122b-a10b",
+    "tokenizer_ratio": 1.0673747855216928
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "qwen3.5-397b-a17b",
+   "tier": "large",
+   "checkpoint": "Qwen/Qwen3.5-397B-A17B",
+   "checkpoint_revision": "8472618112abcbd45acbcdc58436aff4233c23f7",
+   "weights_gib": 751.4,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 31.7,
+   "is_moe": true,
+   "serving_active_gib": 31.7,
+   "architecture": {
+    "head_dim": 256,
+    "hidden_size": 4096,
+    "layer_types": [
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention",
+     "linear_attention",
+     "linear_attention",
+     "linear_attention",
+     "full_attention"
+    ],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 64,
+    "linear_value_head_dim": 128,
+    "mamba_ssm_dtype": "float32",
+    "model_type": "qwen3_5_moe_text",
+    "num_attention_heads": 32,
+    "num_experts": 512,
+    "num_experts_per_tok": 10,
+    "num_hidden_layers": 60,
+    "num_key_value_heads": 2,
+    "vocab_size": 248320
+   },
+   "min_util": 0.762,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "language/m-large",
+   "popularity_weight": 0.02546362228886268,
+   "local_dir": "qwen3.5-397b-a17b",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 10.0,
+   "expected_share": 0.025464,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "qwen3-5-397b-a17b",
+    "tokenizer_ratio": 1.0673747855216928
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "llama-3.1-8b-instruct",
+   "tier": "tiny",
+   "checkpoint": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+   "checkpoint_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+   "weights_gib": 15.0,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 14.9,
+   "is_moe": false,
+   "serving_active_gib": 15.0,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 8,
+    "vocab_size": 128256
+   },
+   "min_util": 0.09,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.016975748192575118,
+   "local_dir": "meta-llama-3.1-8b-instruct",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 5.0,
+   "expected_share": 0.016976,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "mythomax-l2-13b",
+   "tier": "small",
+   "checkpoint": "Gryphe/MythoMax-L2-13b",
+   "checkpoint_revision": "58e77dd48a65176f97f6f376c93efe9caad9c130",
+   "weights_gib": 24.2,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 24.2,
+   "is_moe": false,
+   "serving_active_gib": 24.2,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 5120,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 40,
+    "num_hidden_layers": 40,
+    "num_key_value_heads": 40,
+    "vocab_size": 32000
+   },
+   "min_util": 0.125,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.013401906467822461,
+   "local_dir": "mythomax-l2-13b",
+   "context_len": 4096,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 4.0,
+   "expected_share": 0.013402,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "mistral-small-2603",
+   "tier": "mid",
+   "checkpoint": "mistralai/Mistral-Small-4-119B-2603",
+   "checkpoint_revision": "a11f36bebf709121056b1dbcc943d1c6afbe494d",
+   "weights_gib": 225.2,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 224.4,
+   "is_moe": true,
+   "serving_active_gib": 12.10719347000122,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "kv_lora_rank": 256,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "mistral4",
+    "n_routed_experts": 128,
+    "num_attention_heads": 32,
+    "num_experts_per_tok": 4,
+    "num_hidden_layers": 36,
+    "num_key_value_heads": 32,
+    "qk_rope_head_dim": 64,
+    "sliding_window": null,
+    "vocab_size": 131072
+   },
+   "min_util": 0.469,
+   "min_tp": 2,
+   "tp": 2,
+   "gpus": 2,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.01414645682714593,
+   "local_dir": "mistral-small-4-119b-2603",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 25.0,
+   "n_providers": 4.0,
+   "expected_share": 0.014146,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "mistral-small-4",
+    "tokenizer_ratio": 1.0739276084647438
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 25.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "kimi-k2.5",
+   "tier": "frontier",
+   "checkpoint": "moonshotai/Kimi-K2.5",
+   "checkpoint_revision": "4d01dfe0332d63057c186e0b262165819efb6611",
+   "weights_gib": 554.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 17.3,
+   "is_moe": true,
+   "serving_active_gib": 17.3,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 7168,
+    "kv_lora_rank": 512,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "deepseek_v3",
+    "n_routed_experts": 384,
+    "num_attention_heads": 64,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 61,
+    "num_key_value_heads": 64,
+    "qk_rope_head_dim": 64,
+    "vocab_size": 163840
+   },
+   "min_util": 0.57,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "language/m-large",
+   "popularity_weight": 0.0195874017606636,
+   "local_dir": "kimi-k2.5",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12.0,
+   "n_providers": 7.0,
+   "expected_share": 0.019587,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "l3-lunaris-8b",
+   "tier": "tiny",
+   "checkpoint": "Sao10K/L3-8B-Lunaris-v1",
+   "checkpoint_revision": "8479c2a7ee119c935b9a02c921cc2a85b698dfe8",
+   "weights_gib": 15.0,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 14.9,
+   "is_moe": false,
+   "serving_active_gib": 15.0,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "llama",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 32,
+    "num_key_value_heads": 8,
+    "vocab_size": 128256
+   },
+   "min_util": 0.09,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.01273181114443134,
+   "local_dir": "l3-8b-lunaris-v1",
+   "context_len": 8192,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 8.0,
+   "n_providers": 3.0,
+   "expected_share": 0.012732,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 8.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "ministral-8b-2512",
+   "tier": "tiny",
+   "checkpoint": "mistralai/Ministral-3-8B-Instruct-2512",
+   "checkpoint_revision": "5b26027e7b19eeb4b7352e1fed3926375dd2cb4d",
+   "weights_gib": 19.4,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 17.4,
+   "is_moe": false,
+   "serving_active_gib": 19.4,
+   "architecture": {
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "ministral3",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 34,
+    "num_key_value_heads": 8,
+    "sliding_window": null,
+    "vocab_size": 131072
+   },
+   "min_util": 0.107,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-small",
+   "popularity_weight": 0.011574373767664852,
+   "local_dir": "ministral-3-8b-instruct-2512",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 12,
+   "n_providers": 3.0,
+   "expected_share": 0.011574,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "ministral-3-8b",
+    "tokenizer_ratio": 1.0739276084647438
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 12.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "nemotron-3-super-120b-a12b",
+   "tier": "mid",
+   "checkpoint": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+   "checkpoint_revision": "744b1880a37996c5d56bf454ae164dfd74d77c4e",
+   "weights_gib": 119.5,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 11.6,
+   "is_moe": true,
+   "serving_active_gib": 11.6,
+   "architecture": {
+    "conv_kernel": 4,
+    "head_dim": 128,
+    "hidden_size": 4096,
+    "layer_types": [
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "full_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe",
+     "linear_attention",
+     "moe"
+    ],
+    "mamba_head_dim": 64,
+    "mamba_num_heads": 128,
+    "mamba_ssm_cache_dtype": "float32",
+    "model_type": "nemotron_h",
+    "n_groups": 8,
+    "n_routed_experts": 512,
+    "num_attention_heads": 32,
+    "num_experts_per_tok": 22,
+    "num_hidden_layers": 88,
+    "num_key_value_heads": 2,
+    "sliding_window": null,
+    "ssm_state_size": 128,
+    "vocab_size": 131072
+   },
+   "min_util": 0.496,
+   "min_tp": 1,
+   "tp": 1,
+   "gpus": 1,
+   "servegen_class": "language/m-mid",
+   "popularity_weight": 0.0097937008803318,
+   "local_dir": "nvidia-nemotron-3-super-120b-a12b-fp8",
+   "context_len": 32768,
+   "slo_ttft_ms": 3500,
+   "slo_tpot_ms": 9,
+   "n_providers": 2.0,
+   "expected_share": 0.009794,
+   "slo_source": {
+    "kind": "market-informed",
+    "aa_slug": "nvidia-nemotron-3-super-120b-a12b",
+    "tokenizer_ratio": 1.0739276084647438
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 3500.0,
+       "tpot_ms": 9.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 3500.0,
+       "tpot_ms": 9.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 3500.0,
+       "tpot_ms": 9.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 3500.0,
+       "tpot_ms": 9.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 3500.0,
+       "tpot_ms": 9.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "deepseek-chat-v3.1",
+   "tier": "frontier",
+   "checkpoint": "deepseek-ai/DeepSeek-V3.1",
+   "checkpoint_revision": "c0781d039fb7a1ba2abc4add0bdc293e92d2b8db",
+   "weights_gib": 641.3,
+   "weights_source": "root serving tensors in checkpoints.lock.json; native checkpoint weight format",
+   "active_gib": 34.7,
+   "is_moe": true,
+   "serving_active_gib": 34.7,
+   "architecture": {
+    "head_dim": 64,
+    "hidden_size": 7168,
+    "kv_lora_rank": 512,
+    "layer_types": [
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention",
+     "full_attention"
+    ],
+    "model_type": "deepseek_v3",
+    "n_routed_experts": 256,
+    "num_attention_heads": 128,
+    "num_experts_per_tok": 8,
+    "num_hidden_layers": 61,
+    "num_key_value_heads": 128,
+    "qk_rope_head_dim": 64,
+    "vocab_size": 129280
+   },
+   "min_util": 0.655,
+   "min_tp": 4,
+   "tp": 4,
+   "gpus": 4,
+   "servegen_class": "language/m-large",
+   "popularity_weight": 0.021219685240718895,
+   "local_dir": "deepseek-v3.1",
+   "context_len": 32768,
+   "slo_ttft_ms": 2000.0,
+   "slo_tpot_ms": 18.0,
+   "n_providers": 8.0,
+   "expected_share": 0.02122,
+   "slo_source": {
+    "kind": "active-size-band",
+    "aa_slug": null,
+    "tokenizer_ratio": null
+   },
+   "service_contracts": [
+    {
+     "max_input_tokens": 1024,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 4096,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 8192,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 16384,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    },
+    {
+     "max_input_tokens": 32768,
+     "tiers": {
+      "standard": {
+       "ttft_ms": 2000.0,
+       "tpot_ms": 18.0
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "contract_version": 4,
+ "calibration": {
+  "status": "development",
+  "hardware": null,
+  "profile_sha256": "bcb162203bc201173fbbe6abbe64bf5d000f53e70799eae5f834941803f5de26",
+  "market_anchors_sha256": "b82b55360b2a46d21fd740aeb4533663d3fb703145cbd7ee0cd95d1e37660800",
+  "prefill_basis": "modeled development estimates; no hardware qualification"
+ }
+}

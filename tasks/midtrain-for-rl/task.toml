@@ -1,0 +1,28 @@
+version = "1.0"
+
+# Harbor task description. Breakwater runs and grades the task from breakwater.json
+# (breakwater/README.md); tests/test.sh refuses to run outside it.
+
+[metadata]
+author_name = "InfiniAILab"
+author_email = "yangzho6@andrew.cmu.edu"
+difficulty_explanation = "Mid-train Llama-3.2-1B-Base within 12 hours, choosing data, methods and infrastructure, to maximize its benefit from shared 43K-example RL and its unweighted post-RL math, coding and science score"
+category = "Algorithm Auto Research"
+tags = ["Mid-Training", "Data Mixture", "Llama-3.2", "Megatron", "RL-Readiness"]
+
+[verifier]
+# Integrity judge budget. The fixed RL stage and post-RL evaluation run before the verifier, within
+# breakwater.json's evaluation_timeout_sec.
+timeout_sec = 10800.0
+
+[agent]
+# The 12-hour mid-training attempt.
+timeout_sec = 43200.0
+
+[environment]
+# Built by prepare.sh --images-only (tests/rl_eval/Dockerfile, target agent, tagged by environment/Dockerfile).
+docker_image = "midtrain-for-rl:local"
+build_timeout_sec = 7200.0
+gpus = 4
+gpu_types = ["GB300"]
+storage_mb = 100000

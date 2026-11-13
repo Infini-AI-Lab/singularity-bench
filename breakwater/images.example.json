@@ -1,0 +1,27 @@
+{
+  "_comment": "Input for breakwater/grid.py run --images (coding-agent-harness). Tags are resolved to immutable IDs by cell.py. Build each cell image from the task image with breakwater/cell/Dockerfile.overlay and each verifier with breakwater/cell/Dockerfile.verifier (see breakwater/README.md).",
+  "observer": "breakwater-observer:local",
+  "gateway": "breakwater-dev-gateway:local",
+  "cells": {
+    "flash-attn-backward": {
+      "cell": "flash-attn-backward-cell:local",
+      "verifier": "flash-attn-backward-cell-verifier:local"
+    },
+    "nvfp4-gemm": {
+      "cell": "nvfp4-gemm-cell:local",
+      "verifier": "nvfp4-gemm-cell-verifier:local"
+    },
+    "mla-decode": {
+      "cell": "mla-decode-cell:local",
+      "verifier": "mla-decode-cell-verifier:local"
+    },
+    "pr-vllm-35022": {
+      "cell": "pr-vllm-35022-cell:local",
+      "verifier": "pr-vllm-35022-cell-verifier:local"
+    },
+    "pr-vllm-33698": {
+      "cell": "pr-vllm-33698-cell:local",
+      "verifier": "pr-vllm-33698-cell-verifier:local"
+    }
+  }
+}

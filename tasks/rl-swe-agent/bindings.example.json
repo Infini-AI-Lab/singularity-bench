@@ -1,0 +1,38 @@
+[
+  {
+    "source": "artifacts/GLM-4.7-Flash",
+    "target": "/app/artifacts/GLM-4.7-Flash",
+    "stages": [
+      "agent"
+    ]
+  },
+  {
+    "source": "artifacts/GLM-4.7-Flash",
+    "target": "/private/base-model",
+    "stages": [
+      "intermediate",
+      "verifier"
+    ]
+  },
+  {
+    "source": "data/train.jsonl",
+    "target": "/app/data/train.jsonl",
+    "stages": [
+      "agent"
+    ]
+  },
+  {
+    "source": "data/dev.jsonl",
+    "target": "/app/data/dev.jsonl",
+    "stages": [
+      "agent"
+    ]
+  },
+  {
+    "source": "data/manifest.json",
+    "target": "/app/data/manifest.json",
+    "stages": [
+      "agent"
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "serve-glm53-flash",
+  "kind": "serving",
+  "workdir": "/app",
+  "workspace_source": "image",
+  "submission_mount": "/submission",
+  "agent_timeout_sec": 43200.0,
+  "evaluation_timeout_sec": 21600,
+  "judge_timeout_sec": 10800,
+  "agent_deadline": "evaluate",
+  "failure_reward": 0.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "workspace_excludes": [],
+  "verifier_image": "serve-glm53-flash-verifier:local",
+  "gpus": 4,
+  "gpu_name_patterns": [
+    "GB300"
+  ],
+  "gpu_type": "GB300",
+  "resources": {
+    "cpus": 16,
+    "memory_mb": 524288,
+    "shm_size": "256g"
+  },
+  "review_profile": "indexed"
+}

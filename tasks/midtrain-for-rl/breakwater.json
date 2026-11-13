@@ -1,0 +1,61 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "midtrain-for-rl",
+  "kind": "midtrain",
+  "workdir": "/app",
+  "agent_timeout_sec": 43200.0,
+  "evaluation_timeout_sec": 86400,
+  "judge_timeout_sec": 10800,
+  "agent_deadline": "evaluate",
+  "failure_reward": 0.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "workspace_excludes": [
+    "/README.md",
+    "out",
+    "scratch",
+    "data",
+    "artifacts",
+    "private",
+    ".downloads",
+    ".tools-venv"
+  ],
+  "verifier_image": "midtrain-for-rl-verifier:local",
+  "gpus": 4,
+  "gpu_name_patterns": [
+    "GB300"
+  ],
+  "gpu_type": "GB300",
+  "resources": {
+    "shm_size": "64g",
+    "memlock": -1,
+    "stack": 67108864
+  },
+  "shadow_policy": {
+    "packages": [],
+    "hooks": [],
+    "environments": false
+  },
+  "review_profile": "indexed",
+  "intermediate_network": "bridge",
+  "intermediate_cap_add": [
+    "NET_ADMIN",
+    "NET_RAW"
+  ],
+  "intermediate_env": [
+    "MIDTRAIN_CODE_SANDBOX_URL",
+    "MIDTRAIN_CODE_SANDBOX_TOKEN"
+  ],
+  "intermediate_add_hosts": [
+    "host.docker.internal:host-gateway"
+  ],
+  "snapshot_excludes": [
+    "scratch"
+  ],
+  "review_metadata_paths": [
+    "out/processed_dataset"
+  ],
+  "dataset_manifest": "/app/out/training_dataset.json",
+  "dataset_roots": [
+    "/app/out/processed_dataset"
+  ]
+}

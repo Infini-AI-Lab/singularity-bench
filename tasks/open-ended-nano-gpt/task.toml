@@ -1,0 +1,23 @@
+version = "1.0"
+
+# Launch with breakwater/run.py; the Breakwater task contract is breakwater.json.
+
+[metadata]
+author_name = "InfiniAILab"
+author_email = "yangzho6@andrew.cmu.edu"
+difficulty_explanation = "Train any causal language model from scratch within 12 hours; minimize independently reviewed validation perplexity"
+category = "Machine Learning Systems"
+tags = ["Qwen3", "nanoGPT", "Pretraining", "Multi-GPU", "Optimization"]
+
+[verifier]
+timeout_sec = 10800.0
+
+[agent]
+timeout_sec = 43200.0
+
+[environment]
+docker_image = "open-ended-nano-gpt:local"
+build_timeout_sec = 1200.0
+gpus = 4
+gpu_types = ["GB300"]
+storage_mb = 120000

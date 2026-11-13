@@ -1,0 +1,1283 @@
+{
+ "retrieved_utc": "2026-09-15T20:34:59Z",
+ "sizes": {
+  "ByteDance-Seed/UI-TARS-1.5-7B": {
+   "checkpoint": "ByteDance-Seed/UI-TARS-1.5-7B",
+   "n_files": 7,
+   "bytes": 33168747240,
+   "format": "safetensors",
+   "weights_gib": 30.9,
+   "max_context": 128000,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 8292166656,
+   "dtypes": {
+    "F32": 8292166656
+   }
+  },
+  "CohereForAI/c4ai-command-a-03-2025": {
+   "checkpoint": "CohereForAI/c4ai-command-a-03-2025",
+   "n_files": 49,
+   "bytes": 222115221536,
+   "format": "safetensors",
+   "weights_gib": 206.9,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 111057580032,
+   "dtypes": {
+    "BF16": 111057580032
+   }
+  },
+  "Gryphe/MythoMax-L2-13b": {
+   "checkpoint": "Gryphe/MythoMax-L2-13b",
+   "n_files": 13,
+   "bytes": 26031850441,
+   "format": "bin",
+   "weights_gib": 24.2,
+   "max_context": 4096,
+   "torch_dtype": "float16",
+   "quant_method": null,
+   "params_total": null,
+   "dtypes": {}
+  },
+  "NousResearch/Hermes-3-Llama-3.1-405B": {
+   "checkpoint": "NousResearch/Hermes-3-Llama-3.1-405B",
+   "n_files": 191,
+   "bytes": 811706916800,
+   "format": "safetensors",
+   "weights_gib": 756.0,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 405853388800,
+   "dtypes": {
+    "BF16": 405853388800
+   }
+  },
+  "NousResearch/Hermes-3-Llama-3.1-70B": {
+   "checkpoint": "NousResearch/Hermes-3-Llama-3.1-70B",
+   "n_files": 30,
+   "bytes": 141107497872,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "NousResearch/Hermes-4-405B": {
+   "checkpoint": "NousResearch/Hermes-4-405B",
+   "n_files": 191,
+   "bytes": 811706916800,
+   "format": "safetensors",
+   "weights_gib": 756.0,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 405853388800,
+   "dtypes": {
+    "BF16": 405853388800
+   }
+  },
+  "NousResearch/Hermes-4-70B": {
+   "checkpoint": "NousResearch/Hermes-4-70B",
+   "n_files": 30,
+   "bytes": 141107497872,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "Qwen/Qwen3-14B": {
+   "checkpoint": "Qwen/Qwen3-14B",
+   "n_files": 8,
+   "bytes": 29536665640,
+   "format": "safetensors",
+   "weights_gib": 27.5,
+   "max_context": 40960,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 14768307200,
+   "dtypes": {
+    "BF16": 14768307200
+   }
+  },
+  "Qwen/Qwen3-235B-A22B": {
+   "checkpoint": "Qwen/Qwen3-235B-A22B",
+   "n_files": 118,
+   "bytes": 470191875096,
+   "format": "safetensors",
+   "weights_gib": 437.9,
+   "max_context": 40960,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 235093634560,
+   "dtypes": {
+    "BF16": 235093634560
+   }
+  },
+  "Qwen/Qwen3-235B-A22B-Instruct-2507": {
+   "checkpoint": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+   "n_files": 118,
+   "bytes": 470191875040,
+   "format": "safetensors",
+   "weights_gib": 437.9,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 235093634560,
+   "dtypes": {
+    "BF16": 235093634560
+   }
+  },
+  "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+   "checkpoint": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "n_files": 118,
+   "bytes": 470191875040,
+   "format": "safetensors",
+   "weights_gib": 437.9,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 235093634560,
+   "dtypes": {
+    "BF16": 235093634560
+   }
+  },
+  "Qwen/Qwen3-30B-A3B-Instruct-2507": {
+   "checkpoint": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+   "n_files": 16,
+   "bytes": 61066575656,
+   "format": "safetensors",
+   "weights_gib": 56.9,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 30532122624,
+   "dtypes": {
+    "BF16": 30532122624
+   }
+  },
+  "Qwen/Qwen3-Coder-30B-A3B-Instruct": {
+   "checkpoint": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+   "n_files": 16,
+   "bytes": 61066575656,
+   "format": "safetensors",
+   "weights_gib": 56.9,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 30532122624,
+   "dtypes": {
+    "BF16": 30532122624
+   }
+  },
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct": {
+   "checkpoint": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+   "n_files": 241,
+   "bytes": 960313541352,
+   "format": "safetensors",
+   "weights_gib": 894.4,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 480154875392,
+   "dtypes": {
+    "BF16": 480154875392
+   }
+  },
+  "Qwen/Qwen3-Next-80B-A3B-Instruct": {
+   "checkpoint": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+   "n_files": 41,
+   "bytes": 162659161528,
+   "format": "safetensors",
+   "weights_gib": 151.5,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 81324862720,
+   "dtypes": {
+    "BF16": 81324862720
+   }
+  },
+  "Qwen/Qwen3-VL-235B-A22B-Instruct": {
+   "checkpoint": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+   "n_files": 96,
+   "bytes": 471340223736,
+   "format": "safetensors",
+   "weights_gib": 439.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 235670022896,
+   "dtypes": {
+    "BF16": 235670022896
+   }
+  },
+  "Qwen/Qwen3-VL-235B-A22B-Thinking": {
+   "checkpoint": "Qwen/Qwen3-VL-235B-A22B-Thinking",
+   "n_files": 96,
+   "bytes": 471340223736,
+   "format": "safetensors",
+   "weights_gib": 439.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 235670022896,
+   "dtypes": {
+    "BF16": 235670022896
+   }
+  },
+  "Qwen/Qwen3-VL-30B-A3B-Instruct": {
+   "checkpoint": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+   "n_files": 13,
+   "bytes": 62141618016,
+   "format": "safetensors",
+   "weights_gib": 57.9,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 31070754032,
+   "dtypes": {
+    "BF16": 31070754032
+   }
+  },
+  "Qwen/Qwen3.5-122B-A10B": {
+   "checkpoint": "Qwen/Qwen3.5-122B-A10B",
+   "n_files": 39,
+   "bytes": 250173250864,
+   "format": "safetensors",
+   "weights_gib": 233.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 125086497008,
+   "dtypes": {
+    "BF16": 125086490096,
+    "F32": 6912
+   }
+  },
+  "Qwen/Qwen3.5-27B": {
+   "checkpoint": "Qwen/Qwen3.5-27B",
+   "n_files": 11,
+   "bytes": 55563022432,
+   "format": "safetensors",
+   "weights_gib": 51.7,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 27781427952,
+   "dtypes": {
+    "BF16": 27781419504,
+    "F32": 8448
+   }
+  },
+  "Qwen/Qwen3.5-35B-A3B": {
+   "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+   "n_files": 14,
+   "bytes": 71903878016,
+   "format": "safetensors",
+   "weights_gib": 67.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 35951822704,
+   "dtypes": {
+    "BF16": 35951817904,
+    "F32": 4800
+   }
+  },
+  "Qwen/Qwen3.5-397B-A17B": {
+   "checkpoint": "Qwen/Qwen3.5-397B-A17B",
+   "n_files": 94,
+   "bytes": 806796241352,
+   "format": "safetensors",
+   "weights_gib": 751.4,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 403397928944,
+   "dtypes": {
+    "BF16": 403397920304,
+    "F32": 8640
+   }
+  },
+  "Qwen/Qwen3.5-9B": {
+   "checkpoint": "Qwen/Qwen3.5-9B",
+   "n_files": 4,
+   "bytes": 19306310880,
+   "format": "safetensors",
+   "weights_gib": 18.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 9653104368,
+   "dtypes": {
+    "BF16": 9653100528,
+    "F32": 3840
+   }
+  },
+  "Qwen/Qwen3.6-27B": {
+   "checkpoint": "Qwen/Qwen3.6-27B",
+   "n_files": 15,
+   "bytes": 55563006400,
+   "format": "safetensors",
+   "weights_gib": 51.7,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 27781427952,
+   "dtypes": {
+    "BF16": 27781427952
+   }
+  },
+  "Qwen/Qwen3.6-35B-A3B": {
+   "checkpoint": "Qwen/Qwen3.6-35B-A3B",
+   "n_files": 26,
+   "bytes": 71903776776,
+   "format": "safetensors",
+   "weights_gib": 67.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 35951822704,
+   "dtypes": {
+    "BF16": 35951822704
+   }
+  },
+  "Qwen/Qwen3.8-2.4T-A95B": {
+   "checkpoint": "Qwen/Qwen3.8-2.4T-A95B",
+   "n_files": 213,
+   "bytes": 4892365649336,
+   "format": "safetensors",
+   "weights_gib": 4556.4,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 2446182725504,
+   "dtypes": {
+    "BF16": 2446182725504
+   }
+  },
+  "Qwen/Qwen3.8-27B": {
+   "checkpoint": "Qwen/Qwen3.8-27B",
+   "n_files": 18,
+   "bytes": 55563006776,
+   "format": "safetensors",
+   "weights_gib": 51.7,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 27781427952,
+   "dtypes": {
+    "BF16": 27781427952
+   }
+  },
+  "Sao10K/L3-8B-Lunaris-v1": {
+   "checkpoint": "Sao10K/L3-8B-Lunaris-v1",
+   "n_files": 4,
+   "bytes": 16060556336,
+   "format": "safetensors",
+   "weights_gib": 15.0,
+   "max_context": 8192,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 8030261248,
+   "dtypes": {
+    "BF16": 8030261248
+   }
+  },
+  "Sao10K/L3.1-70B-Euryale-v2.2": {
+   "checkpoint": "Sao10K/L3.1-70B-Euryale-v2.2",
+   "n_files": 30,
+   "bytes": 141107674183,
+   "format": "bin",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "float16",
+   "quant_method": null,
+   "params_total": null,
+   "dtypes": {}
+  },
+  "Sao10K/L3.3-70B-Euryale-v2.3": {
+   "checkpoint": "Sao10K/L3.3-70B-Euryale-v2.3",
+   "n_files": 30,
+   "bytes": 141107497872,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "TheDrummer/Skyfall-36B-v2": {
+   "checkpoint": "TheDrummer/Skyfall-36B-v2",
+   "n_files": 16,
+   "bytes": 73821139168,
+   "format": "safetensors",
+   "weights_gib": 68.8,
+   "max_context": 32768,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 36910535680,
+   "dtypes": {
+    "BF16": 36910535680
+   }
+  },
+  "TheDrummer/UnslopNemo-12B-v4.1": {
+   "checkpoint": "TheDrummer/UnslopNemo-12B-v4.1",
+   "n_files": 5,
+   "bytes": 24495607104,
+   "format": "safetensors",
+   "weights_gib": 22.8,
+   "max_context": 1024000,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 12247782400,
+   "dtypes": {
+    "BF16": 12247782400
+   }
+  },
+  "Undi95/ReMM-SLERP-L2-13B": {
+   "checkpoint": "Undi95/ReMM-SLERP-L2-13B",
+   "n_files": 3,
+   "bytes": 52063582808,
+   "format": "bin",
+   "weights_gib": 48.5,
+   "max_context": 4096,
+   "torch_dtype": "float32",
+   "quant_method": null,
+   "params_total": null,
+   "dtypes": {}
+  },
+  "anthracite-org/magnum-v4-72b": {
+   "checkpoint": "anthracite-org/magnum-v4-72b",
+   "n_files": 31,
+   "bytes": 145412518832,
+   "format": "safetensors",
+   "weights_gib": 135.4,
+   "max_context": 32768,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 72706203648,
+   "dtypes": {
+    "BF16": 72706203648
+   }
+  },
+  "baidu/ERNIE-4.5-VL-424B-A47B-PT": {
+   "checkpoint": "baidu/ERNIE-4.5-VL-424B-A47B-PT",
+   "n_files": 172,
+   "bytes": 847162084600,
+   "format": "safetensors",
+   "weights_gib": 789.0,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 423526285184,
+   "dtypes": {
+    "BF16": 422842368000,
+    "F32": 53483904,
+    "F16": 630433280
+   }
+  },
+  "cognitivecomputations/Dolphin-Mistral-24B-Venice-Edition": {
+   "checkpoint": "cognitivecomputations/Dolphin-Mistral-24B-Venice-Edition",
+   "n_files": 10,
+   "bytes": 48022800560,
+   "format": "safetensors",
+   "weights_gib": 44.7,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 24011361280,
+   "dtypes": {
+    "BF16": 24011361280
+   }
+  },
+  "deepseek-ai/DeepSeek-R1": {
+   "checkpoint": "deepseek-ai/DeepSeek-R1",
+   "n_files": 163,
+   "bytes": 688586727753,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684489845504,
+   "dtypes": {
+    "BF16": 3918786560,
+    "F8_E4M3": 680571043840,
+    "F32": 15104
+   }
+  },
+  "deepseek-ai/DeepSeek-R1-0528": {
+   "checkpoint": "deepseek-ai/DeepSeek-R1-0528",
+   "n_files": 163,
+   "bytes": 688586727753,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684531386000,
+   "dtypes": {
+    "BF16": 3918786560,
+    "F8_E4M3": 680571043840,
+    "F32": 41555600
+   }
+  },
+  "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": {
+   "checkpoint": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+   "n_files": 17,
+   "bytes": 141107497606,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "deepseek-ai/DeepSeek-V3": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3",
+   "n_files": 163,
+   "bytes": 688586727753,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684531386000,
+   "dtypes": {
+    "BF16": 3918786560,
+    "F8_E4M3": 680571043840,
+    "F32": 41555600
+   }
+  },
+  "deepseek-ai/DeepSeek-V3-0324": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3-0324",
+   "n_files": 163,
+   "bytes": 688586727753,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684531386000,
+   "dtypes": {
+    "BF16": 3918786560,
+    "F8_E4M3": 680571043840,
+    "F32": 41555600
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.1": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3.1",
+   "n_files": 163,
+   "bytes": 688586727753,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684531386000,
+   "dtypes": {
+    "BF16": 3918786560,
+    "F8_E4M3": 680571043840,
+    "F32": 41555600
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.1-Terminus": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3.1-Terminus",
+   "n_files": 163,
+   "bytes": 688588816461,
+   "format": "safetensors",
+   "weights_gib": 641.3,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 684531386000,
+   "dtypes": {
+    "BF16": 3917742080,
+    "F8_E4M3": 680571043840,
+    "F32": 42600080
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.2": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3.2",
+   "n_files": 163,
+   "bytes": 689483049129,
+   "format": "safetensors",
+   "weights_gib": 642.1,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 685396921376,
+   "dtypes": {
+    "BF16": 3946184704,
+    "F8_E4M3": 681408069632,
+    "F32": 42667040
+   }
+  },
+  "deepseek-ai/DeepSeek-V3.2-Exp": {
+   "checkpoint": "deepseek-ai/DeepSeek-V3.2-Exp",
+   "n_files": 163,
+   "bytes": 689483049129,
+   "format": "safetensors",
+   "weights_gib": 642.1,
+   "max_context": 163840,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 685396921376,
+   "dtypes": {
+    "BF16": 3946184704,
+    "F8_E4M3": 681408069632,
+    "F32": 42667040
+   }
+  },
+  "google/gemma-2-27b-it": {
+   "checkpoint": "google/gemma-2-27b-it",
+   "n_files": 12,
+   "bytes": 54454316552,
+   "format": "safetensors",
+   "weights_gib": 50.7,
+   "max_context": 8192,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 27227128320,
+   "dtypes": {
+    "BF16": 27227128320
+   }
+  },
+  "google/gemma-3-12b-it": {
+   "checkpoint": "google/gemma-3-12b-it",
+   "n_files": 5,
+   "bytes": 24374793024,
+   "format": "safetensors",
+   "weights_gib": 22.7,
+   "max_context": null,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 12187325040,
+   "dtypes": {
+    "BF16": 12187325040
+   }
+  },
+  "google/gemma-3-27b-it": {
+   "checkpoint": "google/gemma-3-27b-it",
+   "n_files": 12,
+   "bytes": 54864980440,
+   "format": "safetensors",
+   "weights_gib": 51.1,
+   "max_context": null,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 27432406640,
+   "dtypes": {
+    "BF16": 27432406640
+   }
+  },
+  "google/gemma-3-4b-it": {
+   "checkpoint": "google/gemma-3-4b-it",
+   "n_files": 2,
+   "bytes": 8600277880,
+   "format": "safetensors",
+   "weights_gib": 8.0,
+   "max_context": null,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 4300079472,
+   "dtypes": {
+    "BF16": 4300079472
+   }
+  },
+  "google/gemma-4-26B-A4B-it": {
+   "checkpoint": "google/gemma-4-26B-A4B-it",
+   "n_files": 2,
+   "bytes": 51612009916,
+   "format": "safetensors",
+   "weights_gib": 48.1,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 25805936206,
+   "dtypes": {
+    "BF16": 25805936206
+   }
+  },
+  "google/gemma-4-31B-it": {
+   "checkpoint": "google/gemma-4-31B-it",
+   "n_files": 2,
+   "bytes": 62546338248,
+   "format": "safetensors",
+   "weights_gib": 58.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 31273088876,
+   "dtypes": {
+    "BF16": 31273088876
+   }
+  },
+  "ibm-granite/granite-4.2-8b": {
+   "checkpoint": "ibm-granite/granite-4.2-8b",
+   "n_files": 4,
+   "bytes": 17583228032,
+   "format": "safetensors",
+   "weights_gib": 16.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 8791592960,
+   "dtypes": {
+    "BF16": 8791592960
+   }
+  },
+  "meta-llama/Llama-3.2-1B-Instruct": {
+   "checkpoint": "meta-llama/Llama-3.2-1B-Instruct",
+   "n_files": 1,
+   "bytes": 2471645608,
+   "format": "safetensors",
+   "weights_gib": 2.3,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 1235814400,
+   "dtypes": {
+    "BF16": 1235814400
+   }
+  },
+  "meta-llama/Llama-3.2-3B-Instruct": {
+   "checkpoint": "meta-llama/Llama-3.2-3B-Instruct",
+   "n_files": 2,
+   "bytes": 6425529048,
+   "format": "safetensors",
+   "weights_gib": 6.0,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 3212749824,
+   "dtypes": {
+    "BF16": 3212749824
+   }
+  },
+  "meta-llama/Llama-3.3-70B-Instruct": {
+   "checkpoint": "meta-llama/Llama-3.3-70B-Instruct",
+   "n_files": 30,
+   "bytes": 141107497872,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "meta-llama/Llama-4-Maverick-17B-128E-Instruct": {
+   "checkpoint": "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+   "n_files": 55,
+   "bytes": 803167703320,
+   "format": "safetensors",
+   "weights_gib": 748.0,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 401583781376,
+   "dtypes": {
+    "BF16": 401583781376
+   }
+  },
+  "meta-llama/Llama-4-Scout-17B-16E-Instruct": {
+   "checkpoint": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+   "n_files": 50,
+   "bytes": 217283738720,
+   "format": "safetensors",
+   "weights_gib": 202.4,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 108641793536,
+   "dtypes": {
+    "BF16": 108641793536
+   }
+  },
+  "meta-llama/Llama-Guard-4-12B": {
+   "checkpoint": "meta-llama/Llama-Guard-4-12B",
+   "n_files": 5,
+   "bytes": 24002322024,
+   "format": "safetensors",
+   "weights_gib": 22.4,
+   "max_context": null,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 12001097216,
+   "dtypes": {
+    "BF16": 12001097216
+   }
+  },
+  "meta-llama/Meta-Llama-3.1-70B-Instruct": {
+   "checkpoint": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+   "n_files": 30,
+   "bytes": 141107497872,
+   "format": "safetensors",
+   "weights_gib": 131.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 70553706496,
+   "dtypes": {
+    "BF16": 70553706496
+   }
+  },
+  "meta-llama/Meta-Llama-3.1-8B-Instruct": {
+   "checkpoint": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+   "n_files": 4,
+   "bytes": 16060556376,
+   "format": "safetensors",
+   "weights_gib": 15.0,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 8030261248,
+   "dtypes": {
+    "BF16": 8030261248
+   }
+  },
+  "meta-models/Muse-Glimmer-30B": {
+   "checkpoint": "meta-models/Muse-Glimmer-30B",
+   "n_files": 2,
+   "bytes": 59553435272,
+   "format": "safetensors",
+   "weights_gib": 55.5,
+   "max_context": 131072,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 29776626688,
+   "dtypes": {
+    "BF16": 29776626688
+   }
+  },
+  "mistralai/Devstral-2-123B-Instruct-2512": {
+   "checkpoint": "mistralai/Devstral-2-123B-Instruct-2512",
+   "n_files": 54,
+   "bytes": 256499216464,
+   "format": "safetensors",
+   "weights_gib": 238.9,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "fp8",
+   "params_total": 125025989840,
+   "dtypes": {
+    "BF16": 3223400448,
+    "F8_E4M3": 121802588160
+   }
+  },
+  "mistralai/Ministral-3-14B-Instruct-2512": {
+   "checkpoint": "mistralai/Ministral-3-14B-Instruct-2512",
+   "n_files": 5,
+   "bytes": 31453437040,
+   "format": "safetensors",
+   "weights_gib": 29.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "fp8",
+   "params_total": 13945032240,
+   "dtypes": {
+    "BF16": 1781550080,
+    "F8_E4M3": 12163481600
+   }
+  },
+  "mistralai/Ministral-3-3B-Instruct-2512": {
+   "checkpoint": "mistralai/Ministral-3-3B-Instruct-2512",
+   "n_files": 2,
+   "bytes": 9344188292,
+   "format": "safetensors",
+   "weights_gib": 8.7,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "fp8",
+   "params_total": 3849090048,
+   "dtypes": {
+    "BF16": 822899712,
+    "F8_E4M3": 3026190336
+   }
+  },
+  "mistralai/Ministral-3-8B-Instruct-2512": {
+   "checkpoint": "mistralai/Ministral-3-8B-Instruct-2512",
+   "n_files": 4,
+   "bytes": 20841288000,
+   "format": "safetensors",
+   "weights_gib": 19.4,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "fp8",
+   "params_total": 8918026716,
+   "dtypes": {
+    "BF16": 1502496768,
+    "F8_E4M3": 7415529472
+   }
+  },
+  "mistralai/Mistral-Small-24B-Instruct-2501": {
+   "checkpoint": "mistralai/Mistral-Small-24B-Instruct-2501",
+   "n_files": 11,
+   "bytes": 94289694896,
+   "format": "safetensors",
+   "weights_gib": 87.8,
+   "max_context": 32768,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 23572403200,
+   "dtypes": {
+    "BF16": 23572403200
+   }
+  },
+  "mistralai/Mistral-Small-3.1-24B-Instruct-2503": {
+   "checkpoint": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+   "n_files": 11,
+   "bytes": 96045592840,
+   "format": "safetensors",
+   "weights_gib": 89.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 24011361280,
+   "dtypes": {
+    "BF16": 24011361280
+   }
+  },
+  "mistralai/Mistral-Small-3.2-24B-Instruct-2506": {
+   "checkpoint": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+   "n_files": 11,
+   "bytes": 96045592840,
+   "format": "safetensors",
+   "weights_gib": 89.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 24011361280,
+   "dtypes": {
+    "BF16": 24011361280
+   }
+  },
+  "mistralai/Mistral-Small-4-119B-2603": {
+   "checkpoint": "mistralai/Mistral-Small-4-119B-2603",
+   "n_files": 10,
+   "bytes": 241850185032,
+   "format": "safetensors",
+   "weights_gib": 225.2,
+   "max_context": 1048576,
+   "torch_dtype": null,
+   "quant_method": "fp8",
+   "params_total": 119401317952,
+   "dtypes": {
+    "BF16": 1521452032,
+    "F8_E4M3": 117879865344
+   }
+  },
+  "mistralai/Voxtral-Small-24B-2507": {
+   "checkpoint": "mistralai/Voxtral-Small-24B-2507",
+   "n_files": 12,
+   "bytes": 97047423816,
+   "format": "safetensors",
+   "weights_gib": 90.4,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 24261800960,
+   "dtypes": {
+    "F32": 1920000,
+    "BF16": 24259880960
+   }
+  },
+  "moonshotai/Kimi-K2-Instruct": {
+   "checkpoint": "moonshotai/Kimi-K2-Instruct",
+   "n_files": 61,
+   "bytes": 1029190981272,
+   "format": "safetensors",
+   "weights_gib": 958.5,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 1026408235864,
+   "dtypes": {
+    "F32": 23040,
+    "BF16": 2514970968,
+    "F8_E4M3": 1023893241856
+   }
+  },
+  "moonshotai/Kimi-K2-Instruct-0905": {
+   "checkpoint": "moonshotai/Kimi-K2-Instruct-0905",
+   "n_files": 62,
+   "bytes": 1029190989504,
+   "format": "safetensors",
+   "weights_gib": 958.5,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": "fp8",
+   "params_total": 1026470735448,
+   "dtypes": {
+    "F32": 62518232,
+    "BF16": 2514975360,
+    "F8_E4M3": 1023893241856
+   }
+  },
+  "moonshotai/Kimi-K2-Thinking": {
+   "checkpoint": "moonshotai/Kimi-K2-Thinking",
+   "n_files": 62,
+   "bytes": 594232561304,
+   "format": "safetensors",
+   "weights_gib": 553.4,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": "compressed-tensors",
+   "params_total": 1026408240256,
+   "dtypes": {
+    "F32": 23040,
+    "I32": 1014686023680,
+    "BF16": 11722193536
+   }
+  },
+  "moonshotai/Kimi-K2.5": {
+   "checkpoint": "moonshotai/Kimi-K2.5",
+   "n_files": 64,
+   "bytes": 595177988208,
+   "format": "safetensors",
+   "weights_gib": 554.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "compressed-tensors",
+   "params_total": 1026879376368,
+   "dtypes": {
+    "F32": 23040,
+    "I32": 1014686023680,
+    "BF16": 12193329648
+   }
+  },
+  "moonshotai/Kimi-K2.6": {
+   "checkpoint": "moonshotai/Kimi-K2.6",
+   "n_files": 64,
+   "bytes": 595177988208,
+   "format": "safetensors",
+   "weights_gib": 554.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "compressed-tensors",
+   "params_total": 1026879376368,
+   "dtypes": {
+    "F32": 23040,
+    "I32": 1014686023680,
+    "BF16": 12193329648
+   }
+  },
+  "moonshotai/Kimi-K2.7-Code": {
+   "checkpoint": "moonshotai/Kimi-K2.7-Code",
+   "n_files": 64,
+   "bytes": 595177988208,
+   "format": "safetensors",
+   "weights_gib": 554.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "compressed-tensors",
+   "params_total": 1026879376368,
+   "dtypes": {
+    "BF16": 12193329648,
+    "F32": 23040,
+    "I32": 1014686023680
+   }
+  },
+  "moonshotai/Kimi-K3": {
+   "checkpoint": "moonshotai/Kimi-K3",
+   "n_files": 96,
+   "bytes": 1560936091448,
+   "format": "safetensors",
+   "weights_gib": 1453.7,
+   "max_context": 1048576,
+   "torch_dtype": null,
+   "quant_method": "compressed-tensors",
+   "params_total": 2779931837184,
+   "dtypes": {
+    "F32": 11122432,
+    "BF16": 57179884544,
+    "U8": 2722740830208
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16": {
+   "checkpoint": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+   "n_files": 13,
+   "bytes": 63156694272,
+   "format": "safetensors",
+   "weights_gib": 58.8,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 31577937344,
+   "dtypes": {
+    "F32": 5888,
+    "BF16": 31577934400
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8": {
+   "checkpoint": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+   "n_files": 26,
+   "bytes": 128350001680,
+   "format": "safetensors",
+   "weights_gib": 119.5,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": "modelopt",
+   "params_total": 123611012096,
+   "dtypes": {
+    "F32": 20992,
+    "BF16": 4723465216,
+    "F8_E4M3": 118887546880
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {
+   "checkpoint": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+   "n_files": 225,
+   "bytes": 1121055890600,
+   "format": "safetensors",
+   "weights_gib": 1044.1,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 560524578816,
+   "dtypes": {
+    "BF16": 560524578816,
+    "F32": 25088
+   }
+  },
+  "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16": {
+   "checkpoint": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+   "n_files": 14,
+   "bytes": 65827374264,
+   "format": "safetensors",
+   "weights_gib": 61.3,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 31577937344,
+   "dtypes": {
+    "F32": 3072,
+    "BF16": 32913263168
+   }
+  },
+  "openai/gpt-oss-120b": {
+   "checkpoint": "openai/gpt-oss-120b",
+   "n_files": 22,
+   "bytes": 130497762984,
+   "format": "safetensors",
+   "weights_gib": 121.5,
+   "max_context": 131072,
+   "torch_dtype": null,
+   "quant_method": "mxfp4",
+   "params_total": 116829156672,
+   "dtypes": {
+    "BF16": 2167371072,
+    "U8": 114661785600
+   }
+  },
+  "openai/gpt-oss-20b": {
+   "checkpoint": "openai/gpt-oss-20b",
+   "n_files": 4,
+   "bytes": 27522617888,
+   "format": "safetensors",
+   "weights_gib": 25.6,
+   "max_context": 131072,
+   "torch_dtype": null,
+   "quant_method": "mxfp4",
+   "params_total": 20914757184,
+   "dtypes": {
+    "BF16": 1804459584,
+    "U8": 19110297600
+   }
+  },
+  "openai/gpt-oss-safeguard-20b": {
+   "checkpoint": "openai/gpt-oss-safeguard-20b",
+   "n_files": 3,
+   "bytes": 13761316904,
+   "format": "safetensors",
+   "weights_gib": 12.8,
+   "max_context": 131072,
+   "torch_dtype": null,
+   "quant_method": "mxfp4",
+   "params_total": 21511953984,
+   "dtypes": {
+    "BF16": 1804459584,
+    "U8": 19707494400
+   }
+  },
+  "tencent/Hy-MT2-1.8B": {
+   "checkpoint": "tencent/Hy-MT2-1.8B",
+   "n_files": 1,
+   "bytes": 4077072784,
+   "format": "safetensors",
+   "weights_gib": 3.8,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 2038515712,
+   "dtypes": {
+    "BF16": 2038515712
+   }
+  },
+  "tencent/Hy-MT2-30B-A3B": {
+   "checkpoint": "tencent/Hy-MT2-30B-A3B",
+   "n_files": 51,
+   "bytes": 60131744832,
+   "format": "safetensors",
+   "weights_gib": 56.0,
+   "max_context": 262144,
+   "torch_dtype": null,
+   "quant_method": null,
+   "params_total": 30064725888,
+   "dtypes": {
+    "BF16": 30064719872,
+    "F32": 6016
+   }
+  },
+  "tencent/Hy-MT2-7B": {
+   "checkpoint": "tencent/Hy-MT2-7B",
+   "n_files": 4,
+   "bytes": 16059122256,
+   "format": "safetensors",
+   "weights_gib": 15.0,
+   "max_context": 262144,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 8029540352,
+   "dtypes": {
+    "BF16": 8029540352
+   }
+  },
+  "thedrummer/cydonia-24b-v4.1": {
+   "checkpoint": "thedrummer/cydonia-24b-v4.1",
+   "n_files": 10,
+   "bytes": 47144848872,
+   "format": "safetensors",
+   "weights_gib": 43.9,
+   "max_context": 131072,
+   "torch_dtype": "bfloat16",
+   "quant_method": null,
+   "params_total": 23572403200,
+   "dtypes": {
+    "BF16": 23572403200
+   }
+  }
+ }
+}

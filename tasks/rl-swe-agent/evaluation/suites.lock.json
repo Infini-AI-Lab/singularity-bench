@@ -1,0 +1,16 @@
+{
+  "rl-swe-agent-dev": {
+    "kind": "dev_split",
+    "repository": "open-thoughts/OpenThoughts-Agent-v1-RL",
+    "revision": "39ab71434e90d8f87d2cd69c13b6d8a0cb2c238f",
+    "task_count": 73,
+    "agent_timeout_sec": 600
+  },
+  "swebench-verified": {
+    "url": "https://github.com/laude-institute/harbor-datasets.git",
+    "commit": "86723674f04e4209ac479d0fb75d9d9f44b4377e",
+    "task_path": "datasets/swebench-verified",
+    "task_count": 500,
+    "agent_timeout_sec": 3000
+  }
+}

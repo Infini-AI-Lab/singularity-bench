@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "algorithm": "grpo",
+  "seed": 20261001,
+  "batch_size": 128,
+  "batch_unit": "prompts",
+  "responses_per_prompt": 8,
+  "max_input_tokens": 2048,
+  "max_generation_tokens": 16384,
+  "learning_rate": 5e-07,
+  "lr_schedule": "linear",
+  "temperature": 1.0,
+  "top_p": 1.0,
+  "kl_loss_coefficient": 0.05,
+  "reference_policy": "frozen_submission",
+  "clip_low": 0.2,
+  "clip_high": 0.2,
+  "entropy_coefficient": 0.0,
+  "adam_beta1": 0.9,
+  "adam_beta2": 0.999,
+  "weight_decay": 0.0,
+  "reward": "binary_correctness",
+  "require_think_format": false,
+  "counts": {
+    "math": 19000,
+    "code": 7000,
+    "science": 17000
+  },
+  "note": "Shared operator recipe: 128 prompts x 8 responses, five-hour RL wall-clock budget including initialization and checkpoint saves. Linear LR decays by elapsed wall time; update count is measured, not fixed. Other hyperparameters remain the documented Slime adaptation.",
+  "time_budget_seconds": 18000,
+  "checkpoint_interval_seconds": 3600,
+  "final_save_reserve_seconds": 900
+}

@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
+# and verifier.timeout_sec (the time limit of the grading stage).
+
+[task]
+name = "singularity-bench/mla-decode"
+description = "Write a fast Multi-head Latent Attention (MLA) decode kernel: given the absorbed 576-dim latent query/KV-cache (DeepSeek-V2/V3, 128 heads, 512 value dim + 64 decoupled-RoPE), produce a fused flash-decode kernel that matches a torch reference and is much faster across a range of (B,L) decode sizes (batch 8-128, cache 2k-32k, including a big case). torch.compile (~2.2x) and SDPA (head_dim 576) stay far behind, so this needs a real fused kernel (Triton split-KV, CUDA or the CuTe DSL, FlashMLA-style). Graded on correctness (gate) plus a continuous geomean-speedup score over the reference across several undisclosed shapes, normalized to a live-benchmarked state-of-the-art MLA decode kernel, on GPU."
+keywords = ["kernels", "mla", "attention", "decode", "flash-attention", "deepseek", "gpu", "cuda", "cute-dsl", "triton"]
+
+[metadata]
+suite = "singularity-bench/coding-agent-harness"
+group = "kernels"
+difficulty = "hard"
+category = "kernel-generation"
+tags = ["kernels", "mla", "attention", "decode", "gpu", "real-world"]
+
+[verifier]
+# A hang catcher for the grading stage. The verifier times the submitted kernel repeatedly at every shape with
+# no internal time bound, so a correct but slow kernel takes proportionally longer to measure. A grading stage
+# that runs out of time leaves the cell without a score (void), not with a zero.
+environment_mode = "separate"
+timeout_sec = 3600.0
+
+[agent]
+# The submitted harness's wall clock on this task: four hours.
+timeout_sec = 14400.0
+
+[environment]
+# Built from environment/Dockerfile. Needs a GPU (sm_90 Hopper or sm_10x Blackwell, including GB300). The image
+# picks its CUDA from the build host: CUDA 12.8 with torch cu128 on x86_64, where the vendored Hopper FlashMLA
+# oracle loads; CUDA 13 with torch cu130 on aarch64, where the Blackwell oracle routes are FlashInfer's MLA
+# decode and the pinned FA4 CuTe MLA kernel.
+docker_image = "mla-decode:local"
+build_timeout_sec = 5400.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 1
+gpu_types = ["H100", "H200", "GB300"]

@@ -1,0 +1,226 @@
+[
+ {
+  "id": "reads_then_edits",
+  "task": "hello.py greets the wrong name. Read it, fix the greeting to say Ada, and leave a note in FIXED.txt saying what you changed.",
+  "files": {
+   "hello.py": "def greet():\n    return 'hello, Grace'\n",
+   "README.md": "# demo\n"
+  },
+  "script": [
+   {
+    "intent": "read",
+    "path": "hello.py",
+    "content": "Let me look at the file first."
+   },
+   {
+    "intent": "write",
+    "path": "hello.py",
+    "content": "def greet():\n    return 'hello, Ada'\n"
+   },
+   {
+    "intent": "write",
+    "path": "FIXED.txt",
+    "content": "changed the greeting from Grace to Ada\n"
+   }
+  ],
+  "expect": {
+   "file_is": {
+    "hello.py": "def greet():\n    return 'hello, Ada'\n"
+   },
+   "file_exists": [
+    "FIXED.txt"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "runs_a_command",
+  "task": "Run the project's check script and record whether it passed in RESULT.txt.",
+  "files": {
+   "check.sh": "#!/bin/sh\necho CHECK_OK\n",
+   "RESULT.txt": "unknown\n"
+  },
+  "script": [
+   {
+    "intent": "shell",
+    "command": "sh check.sh",
+    "content": "Running the check."
+   },
+   {
+    "intent": "write",
+    "path": "RESULT.txt",
+    "content": "passed: CHECK_OK\n"
+   }
+  ],
+  "expect": {
+   "file_contains": [
+    "RESULT.txt",
+    "CHECK_OK"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "several_files",
+  "task": "Read config.ini and version.txt, then write a combined summary to SUMMARY.md.",
+  "files": {
+   "config.ini": "[app]\nname = widget\n",
+   "version.txt": "2.4.1\n"
+  },
+  "script": [
+   {
+    "intent": "read",
+    "path": "config.ini",
+    "content": "Checking the config."
+   },
+   {
+    "intent": "read",
+    "path": "version.txt",
+    "content": "And the version."
+   },
+   {
+    "intent": "write",
+    "path": "SUMMARY.md",
+    "content": "widget 2.4.1\n"
+   }
+  ],
+  "expect": {
+   "file_contains": [
+    "SUMMARY.md",
+    "widget 2.4.1"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "prose_turn_is_not_done",
+  "task": "config.yaml has the wrong port. Change it to 8080 and record the change in CHANGES.md.",
+  "files": {
+   "config.yaml": "port: 3000\n",
+   "CHANGES.md": "# changes\n"
+  },
+  "script": [
+   {
+    "intent": "talk",
+    "content": "Let me start by getting my bearings. I'll read config.yaml, change the port, and then write the change down."
+   },
+   {
+    "intent": "read",
+    "path": "config.yaml",
+    "content": "Reading the config."
+   },
+   {
+    "intent": "talk",
+    "content": "The port is 3000 and it should be 8080. Making that edit now."
+   },
+   {
+    "intent": "write",
+    "path": "config.yaml",
+    "content": "port: 8080\n"
+   },
+   {
+    "intent": "write",
+    "path": "CHANGES.md",
+    "content": "# changes\n\n- port 3000 -> 8080\n"
+   }
+  ],
+  "expect": {
+   "file_is": {
+    "config.yaml": "port: 8080\n"
+   },
+   "file_contains": [
+    "CHANGES.md",
+    "8080"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "call_written_in_prose",
+  "task": "Add a LICENSE file containing the word MIT.",
+  "reports": "handles_prose_calls",
+  "files": {
+   "README.md": "# demo\n"
+  },
+  "script": [
+   {
+    "intent": "write",
+    "path": "LICENSE",
+    "content": "MIT\n",
+    "dialect": "xml"
+   }
+  ],
+  "expect": {
+   "file_contains": [
+    "LICENSE",
+    "MIT"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "transient_fault",
+  "task": "Write BUILD.md describing how to build this project.",
+  "reports": "recovers_from_fault",
+  "files": {
+   "Makefile": "all:\n\techo built\n"
+  },
+  "faults": {
+   "0": "error"
+  },
+  "script": [
+   {
+    "intent": "read",
+    "path": "Makefile",
+    "content": "Looking at the Makefile."
+   },
+   {
+    "intent": "write",
+    "path": "BUILD.md",
+    "content": "run make\n"
+   }
+  ],
+  "expect": {
+   "file_contains": [
+    "BUILD.md",
+    "make"
+   ]
+  },
+  "seconds": 240
+ },
+ {
+  "id": "stops_when_exhausted",
+  "task": "Rewrite every file in this project to be clearer.",
+  "reports": "stops_when_exhausted",
+  "files": {
+   "a.py": "x=1\n",
+   "b.py": "y=2\n",
+   "c.py": "z=3\n"
+  },
+  "seconds": 0,
+  "script": [
+   {
+    "intent": "write",
+    "path": "a.py",
+    "content": "x = 1\n"
+   },
+   {
+    "intent": "write",
+    "path": "b.py",
+    "content": "y = 2\n"
+   },
+   {
+    "intent": "write",
+    "path": "c.py",
+    "content": "z = 3\n"
+   }
+  ],
+  "expect": {
+   "file_is": {
+    "a.py": "x=1\n",
+    "b.py": "y=2\n",
+    "c.py": "z=3\n"
+   }
+  }
+ }
+]

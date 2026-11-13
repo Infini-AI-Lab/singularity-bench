@@ -1,0 +1,6 @@
+/nanoGPT/data/openwebtext/*.bin
+/nanoGPT/data/openwebtext/*.arrow
+/nanoGPT/data/openwebtext_qwen3_*/
+/out/
+__pycache__/
+*.py[cod]

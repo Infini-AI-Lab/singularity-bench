@@ -1,0 +1,7 @@
+# The generated world -- catalogues, fleets, suite definitions and the six traces with their .meta.json --
+# is committed with the task: it defines the workload, the task image and the verifier copy it, and
+# bin/cluster.sh reads the card size from the graded catalogue. _dev/world-manifest.json records every
+# file's hash; _dev/regen_world.sh can rebuild the world from the frozen inputs and must reproduce it.
+runs/
+__pycache__/
+.pytest_cache/

@@ -1,0 +1,17 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "coding-agent-harness/cell",
+  "kind": "harness_cell",
+  "gpus": 1,
+  "gpu_name_patterns": [
+    "GB300",
+    "B300"
+  ],
+  "gpu_type": "GB300",
+  "shm_size": "8g",
+  "wall_grace_sec": 900,
+  "judge_timeout_sec": 10800,
+  "failure_reward": 0.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "review_profile": "indexed"
+}

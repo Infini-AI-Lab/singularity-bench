@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
+# and verifier.timeout_sec (the time limit of the grading stage).
+
+[task]
+name = "singularity-bench/nvfp4-gemm"
+description = "Write a fast NVFP4 block-scaled GEMM: given 4-bit e2m1 activations and weights packed two per byte with NVIDIA's 1x16 e4m3 block scaling plus a global scale, produce a kernel that matches an fp32 dequant reference and is faster than a bfloat16 cuBLAS matmul. Requires Blackwell FP4 tensor cores, and the prebuilt block-scaled GEMMs (cuBLAS via torch._scaled_mm, FlashInfer, DeepGEMM) are all closed off, so the kernel has to be written: Triton tl.dot_scaled, the CuTe DSL or CUDA. Graded on correctness (gate) plus a continuous geomean-speedup score over bf16 cuBLAS, normalized to a live-benchmarked state-of-the-art FP4 kernel, across a range of square and non-square shapes, on GPU."
+keywords = ["kernels", "fp4", "nvfp4", "gemm", "block-scaled", "low-precision", "blackwell", "gpu", "cuda", "cute-dsl", "triton"]
+
+[metadata]
+suite = "singularity-bench/coding-agent-harness"
+group = "kernels"
+difficulty = "hard"
+category = "kernel-generation"
+tags = ["kernels", "fp4", "low-precision", "blackwell", "gpu", "real-world"]
+
+[verifier]
+# A hang catcher for the grading stage. The verifier times the submitted kernel repeatedly at every shape with
+# no internal time bound, so a correct but slow kernel takes proportionally longer to measure. A grading stage
+# that runs out of time leaves the cell without a score (void), not with a zero.
+environment_mode = "separate"
+timeout_sec = 3600.0
+
+[agent]
+# The submitted harness's wall clock on this task: four hours.
+timeout_sec = 14400.0
+
+[environment]
+# Built from environment/Dockerfile. Needs FP4 tensor cores, which means Blackwell (sm_100 or newer); on an older
+# GPU the sealed oracle raises OracleUnavailable and the cell is void rather than scored. The image picks its
+# CUDA from the build host: CUDA 12.8 with torch cu128 on x86_64, CUDA 13 with torch cu130 on aarch64, where
+# sm_103 needs nvcc 12.9 or newer.
+docker_image = "nvfp4-gemm:local"
+build_timeout_sec = 5400.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 1
+gpu_types = ["B200", "GB300"]

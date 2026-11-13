@@ -1,0 +1,29 @@
+{
+  "math": {
+    "repo": "agentica-org/DeepScaleR-Preview-Dataset",
+    "revision": "b6ae8c60f5c1f2b594e2140b91c49c9ad0949e29",
+    "files": [
+      "deepscaler.json"
+    ]
+  },
+  "code": {
+    "repo": "agentica-org/DeepCoder-Preview-Dataset",
+    "revision": "177913a7bd43791646ef6a43645caa3c871ab3db",
+    "configs": [
+      "lcbv5",
+      "primeintellect",
+      "taco"
+    ],
+    "split": "train"
+  },
+  "science": {
+    "repo": "nvidia/OpenScienceReasoning-2",
+    "revision": "174b02c9cdf231f220765b2a1d5ece4550921894",
+    "split": "train",
+    "pool_size": 100000
+  },
+  "references": [
+    "https://arxiv.org/html/2603.17074v1#S9.SS1",
+    "https://arxiv.org/html/2603.17074v1#A15"
+  ]
+}

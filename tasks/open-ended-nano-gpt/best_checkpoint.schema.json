@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "best_checkpoint.schema.json",
+  "title": "Live best checkpoint record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "checkpoint_path",
+    "model_config",
+    "step",
+    "tokens_seen",
+    "validation_loss",
+    "updated_at_utc"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "checkpoint_path": {
+      "const": "out/final_checkpoint"
+    },
+    "model_config": {
+      "const": "out/final_checkpoint/config.json"
+    },
+    "step": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_seen": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "validation_loss": {
+      "type": "number",
+      "minimum": 0
+    },
+    "updated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,31 @@
+{
+  "protocol": "breakwater-v1",
+  "task": "open-ended-nano-gpt",
+  "kind": "nano",
+  "workdir": "/app",
+  "agent_timeout_sec": 43200.0,
+  "evaluation_timeout_sec": 21600,
+  "judge_timeout_sec": 10800,
+  "agent_deadline": "evaluate",
+  "failure_reward": -1.0,
+  "rule_violation_reward": -1.0,
+  "judge_model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "gpus": 4,
+  "gpu_name_patterns": [
+    "GB300"
+  ],
+  "gpu_type": "GB300",
+  "workspace_source": "task",
+  "workspace_excludes": [
+    "/README.md",
+    "out",
+    "private_validation",
+    "lambada"
+  ],
+  "resources": {
+    "shm_size": "16g",
+    "memlock": -1
+  },
+  "review_profile": "indexed",
+  "verifier_image": "open-ended-nano-gpt-verifier:local"
+}

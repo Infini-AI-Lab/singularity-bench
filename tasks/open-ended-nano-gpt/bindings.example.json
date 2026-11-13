@@ -1,0 +1,32 @@
+[
+  {
+    "source": "open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full/train.bin",
+    "target": "/app/nanoGPT/data/openwebtext_qwen3_full/train.bin",
+    "stages": [
+      "agent"
+    ]
+  },
+  {
+    "source": "open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full/meta.json",
+    "target": "/app/nanoGPT/data/openwebtext_qwen3_full/meta.json",
+    "stages": [
+      "agent"
+    ]
+  },
+  {
+    "source": "private_validation/openwebtext_qwen3_full",
+    "target": "/private/validation",
+    "stages": [
+      "intermediate",
+      "verifier"
+    ]
+  },
+  {
+    "source": "private_validation/lambada",
+    "target": "/private/lambada",
+    "stages": [
+      "intermediate",
+      "verifier"
+    ]
+  }
+]

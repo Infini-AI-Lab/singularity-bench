@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+# Launched with breakwater/run.py, which runs authoring, the validity battery and the final verifier in three
+# separate containers; the task contract is breakwater.json. The harness score comes from the downstream grid
+# (breakwater/grid.py), which runs eval/e2e_tasks/ with the drivers and profile in eval/config.json.
+
+[task]
+name = "singularity-bench/coding-agent-harness"
+description = "Build a whole agentic coding harness behind one entry point: prompt, tools, tool execution, permissioning, context management, fault handling and stopping. Scored by pointing the submitted run() at real repositories with real models and letting each of those tasks' own verifiers say whether the work got done."
+keywords = ["agent-harness", "coding-agent", "end-to-end", "python-stdlib", "gpu-development"]
+
+[metadata]
+author_name = "InfiniAILab"
+author_email = "yangzho6@andrew.cmu.edu"
+difficulty_explanation = "Build a coding-agent harness from scratch within 6 hours using only the Python standard library; scored by the mean downstream score over three kernel-generation and two vLLM bug-fixing tasks, each driven by three different models"
+category = "Agent Systems"
+tags = ["Agent Harness", "Coding Agent", "Kernel Generation", "vLLM", "Tool Use"]
+
+[verifier]
+# Final verifier (breakwater/verifier.py): a separate read-only container with no GPU that checks the sealed
+# evidence, recomputes the validity battery from its raw records and runs the integrity judge. The root reward
+# is gradeability (1.0 or 0.0); the harness score is the downstream grid mean.
+environment_mode = "separate"
+timeout_sec = 10800.0
+
+[agent]
+# Authoring budget: six hours on one GB300 GPU, plus the development gateway's 5M chat and 20M embedding
+# tokens (breakwater.json).
+timeout_sec = 21600.0
+
+[environment]
+# environment/Dockerfile builds the task runtime; the protected author image (breakwater/author/Dockerfile) is
+# built on top of it.
+docker_image = "coding-agent-harness:local"
+build_timeout_sec = 2400.0
+cpus = 4
+memory_mb = 16384
+storage_mb = 32768
+# One GPU for development. The model gateways are hosted API proxies, so there are no local model weights.
+gpus = 1
+gpu_types = ["GB300"]

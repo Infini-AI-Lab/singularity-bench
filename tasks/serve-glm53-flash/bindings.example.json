@@ -1,0 +1,10 @@
+[
+  {
+    "source": "serving/GLM-5.3-Flash",
+    "target": "/models/GLM-5.3-Flash",
+    "stages": [
+      "agent",
+      "intermediate"
+    ]
+  }
+]

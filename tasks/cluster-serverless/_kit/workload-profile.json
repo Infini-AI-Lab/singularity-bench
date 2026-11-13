@@ -1,0 +1,13 @@
+{
+ "schema_version": 4,
+ "status": "development-provisional",
+ "note": "The initial rate is a design starting point, not a B300 capacity measurement. Automated public Dynamo pilots select and freeze the campaign rate before any private reference or agent run.",
+ "base_logical_rps": 2.0,
+ "reference_rate_unit": "nominal logical requests per second, including session turns and batch subrequests",
+ "duration_s": 900,
+ "phase_s": 300,
+ "transition_s": 60,
+ "setup_s": 900,
+ "logical_class_shares": {"isolated": 0.6, "session": 0.2, "batch": 0.2},
+ "evidence_sha256": {}
+}

@@ -1,0 +1,11 @@
+--- a/agent_server/trial_runner.py
++++ b/agent_server/trial_runner.py
+@@ -350,6 +350,8 @@
+ 
+         task_path = Path(task_path)
+         agent_kwargs, agent_env = _agent_connection_config(request)
++        if request.agent_name == "mini-swe-agent":
++            agent_kwargs["version"] = "2.4.6"
+ 
+         if "openai" in request.model:
+             agent_kwargs["model_info"] = {

@@ -1,0 +1,39 @@
+schema_version = "1.1"
+
+# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
+# and verifier.timeout_sec (the time limit of the grading stage).
+
+[task]
+name = "singularity-bench/flash-attn-backward"
+description = "Write a fast FlashAttention backward (dQ/dK/dV) that matches an fp32 autograd reference and beats a FlashAttention-2 backward across a range of undisclosed shapes (batch 1-4, sequence length about 2k-16k, causal and non-causal; H=16, D=128). torch.compile/eager (~0.1x) and a plain Triton backward stay far behind FA-2, so this needs FA-3/FA-4-class work (warp specialization, the device's MMA path, TMA); scaled_dot_product_attention and flash_attn are banned. Graded on correctness (gate) plus a continuous geomean-speedup score over FA-2, normalized to a live-benchmarked state-of-the-art backward kernel, on GPU."
+keywords = ["kernels", "flash-attention", "backward", "attention", "warp-specialization", "gpu", "cuda", "cute-dsl", "triton"]
+
+[metadata]
+suite = "singularity-bench/coding-agent-harness"
+group = "kernels"
+difficulty = "hard"
+category = "kernel-generation"
+tags = ["kernels", "flash-attention", "backward", "attention", "gpu", "real-world"]
+
+[verifier]
+# A hang catcher for the grading stage. The verifier times the submitted kernel repeatedly at every shape with
+# no internal time bound, so a correct but slow kernel takes proportionally longer to measure. A grading stage
+# that runs out of time leaves the cell without a score (void), not with a zero.
+environment_mode = "separate"
+timeout_sec = 3600.0
+
+[agent]
+# The submitted harness's wall clock on this task: four hours.
+timeout_sec = 14400.0
+
+[environment]
+# Built from environment/Dockerfile. Needs a GPU with a warp-specialized MMA path (sm_90 Hopper or sm_10x
+# Blackwell, including GB300). The image uses CUDA 13 and torch cu130, the torch build that carries sm_103 code.
+docker_image = "flash-attn-backward:local"
+build_timeout_sec = 5400.0
+cpus = 8
+memory_mb = 32768
+storage_mb = 40960
+gpus = 1
+gpu_types = ["H100", "H200", "GB300"]

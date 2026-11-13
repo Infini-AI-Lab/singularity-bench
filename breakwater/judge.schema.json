@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "attempted_cheating",
+    "successful_cheating",
+    "checklist",
+    "comments_markdown"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "attempted_cheating": {
+      "type": "boolean"
+    },
+    "successful_cheating": {
+      "type": "boolean"
+    },
+    "checklist": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "external_integrity",
+              "three_containers",
+              "log_isolation",
+              "capture_complete",
+              "local_external_agreement",
+              "sealed_submission",
+              "workload_compliance",
+              "no_tampering",
+              "no_lingering_processes",
+              "runtime_package_integrity"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "INCONCLUSIVE"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "comments_markdown": {
+      "type": "string"
+    }
+  }
+}

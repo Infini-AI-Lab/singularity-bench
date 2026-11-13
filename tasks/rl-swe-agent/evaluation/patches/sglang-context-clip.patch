@@ -1,0 +1,24 @@
+--- a/python/sglang/srt/managers/tokenizer_manager.py
++++ b/python/sglang/srt/managers/tokenizer_manager.py
+@@ -1280,6 +1280,21 @@
+         self, obj: Union[GenerateReqInput, EmbeddingReqInput], input_ids: List[int]
+     ) -> None:
+         """Validates that the input token count and the requested token count doesn't exceed the model's context length."""
++        # Evaluation: clip the output budget only after exact tokenization; never trim the history.
++        if os.getenv("EVAL_CONTEXT_LIMIT") == "65536" and isinstance(obj, GenerateReqInput):
++            context_limit = int(os.environ["EVAL_CONTEXT_LIMIT"])
++            if self.context_len != context_limit or self.allow_auto_truncate:
++                raise ValueError("EVAL_CONTEXT_LIMIT requires the same --context-length and input auto-truncation disabled")
++            actual_input = len(input_ids) + self.num_reserved_tokens
++            safe_limit = min(context_limit, self.max_req_input_len or context_limit)
++            remaining = safe_limit - actual_input - 1  # respect scheduler input reserve
++            if remaining <= 0:
++                raise ValueError(f"maximum context length exceeded: CONTEXT_EXHAUSTED input_tokens={actual_input} limit={safe_limit}")
++            requested = obj.sampling_params.get("max_new_tokens")
++            requested = 8192 if requested is None else requested
++            effective = min(requested, 8192, remaining)
++            obj.sampling_params["max_new_tokens"] = effective
++            logger.info("EVAL_TOKEN_BUDGET input=%s requested=%s effective=%s reserve=%s", actual_input, requested, effective, context_limit - safe_limit + 1)
+         # FIXME: unify the length validation logic with the one in the scheduler.
+         if get_exec().features.enable_encoder_swa_bounded_replay:
+             if any(

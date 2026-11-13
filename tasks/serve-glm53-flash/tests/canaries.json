@@ -1,0 +1,362 @@
+[
+  {
+    "id": "canary-000",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ben had 40 buttons. Ben bought 14 more and then gave 7 to a friend. How many buttons does Ben have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "47"
+  },
+  {
+    "id": "canary-001",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ben had 24 pencils. Ben bought 39 more and then gave 2 to a friend. How many pencils does Ben have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "61"
+  },
+  {
+    "id": "canary-002",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 78 marbles. Carla bought 37 more and then gave 4 to a friend. How many marbles does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "111"
+  },
+  {
+    "id": "canary-003",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 47 apples. Carla bought 31 more and then gave 2 to a friend. How many apples does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "76"
+  },
+  {
+    "id": "canary-004",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Diego had 55 oranges. Diego bought 32 more and then gave 1 to a friend. How many oranges does Diego have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "86"
+  },
+  {
+    "id": "canary-005",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ben had 80 buttons. Ben bought 19 more and then gave 11 to a friend. How many buttons does Ben have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "88"
+  },
+  {
+    "id": "canary-006",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ben had 56 apples. Ben bought 30 more and then gave 1 to a friend. How many apples does Ben have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "85"
+  },
+  {
+    "id": "canary-007",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Emma had 55 cookies. Emma bought 13 more and then gave 5 to a friend. How many cookies does Emma have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "63"
+  },
+  {
+    "id": "canary-008",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Frank had 54 books. Frank bought 12 more and then gave 10 to a friend. How many books does Frank have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "56"
+  },
+  {
+    "id": "canary-009",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 26 stickers. Carla bought 17 more and then gave 6 to a friend. How many stickers does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "37"
+  },
+  {
+    "id": "canary-010",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Priya had 56 apples. Priya bought 8 more and then gave 10 to a friend. How many apples does Priya have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "54"
+  },
+  {
+    "id": "canary-011",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Omar had 63 pencils. Omar bought 39 more and then gave 7 to a friend. How many pencils does Omar have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "95"
+  },
+  {
+    "id": "canary-012",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Hassan had 57 books. Hassan bought 34 more and then gave 6 to a friend. How many books does Hassan have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "85"
+  },
+  {
+    "id": "canary-013",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 70 apples. Carla bought 16 more and then gave 12 to a friend. How many apples does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "74"
+  },
+  {
+    "id": "canary-014",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Kira had 56 cards. Kira bought 24 more and then gave 9 to a friend. How many cards does Kira have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "71"
+  },
+  {
+    "id": "canary-015",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 66 oranges. Carla bought 33 more and then gave 5 to a friend. How many oranges does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "94"
+  },
+  {
+    "id": "canary-016",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Kira had 27 coins. Kira bought 37 more and then gave 7 to a friend. How many coins does Kira have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "57"
+  },
+  {
+    "id": "canary-017",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla had 29 marbles. Carla bought 36 more and then gave 7 to a friend. How many marbles does Carla have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "58"
+  },
+  {
+    "id": "canary-018",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Kira had 68 pencils. Kira bought 40 more and then gave 10 to a friend. How many pencils does Kira have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "98"
+  },
+  {
+    "id": "canary-019",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Omar had 64 cards. Omar bought 27 more and then gave 10 to a friend. How many cards does Omar have now?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "81"
+  },
+  {
+    "id": "canary-020",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla packed cards into 3 boxes with 5 cards in each box, and had 4 cards left over. How many cards did Carla have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "19"
+  },
+  {
+    "id": "canary-021",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Omar packed buttons into 3 boxes with 8 buttons in each box, and had 9 buttons left over. How many buttons did Omar have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "33"
+  },
+  {
+    "id": "canary-022",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Omar packed marbles into 5 boxes with 10 marbles in each box, and had 5 marbles left over. How many marbles did Omar have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "55"
+  },
+  {
+    "id": "canary-023",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Priya packed stickers into 5 boxes with 6 stickers in each box, and had 9 stickers left over. How many stickers did Priya have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "39"
+  },
+  {
+    "id": "canary-024",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Hassan packed coins into 3 boxes with 7 coins in each box, and had 4 coins left over. How many coins did Hassan have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "25"
+  },
+  {
+    "id": "canary-025",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Frank packed stickers into 6 boxes with 10 stickers in each box, and had 7 stickers left over. How many stickers did Frank have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "67"
+  },
+  {
+    "id": "canary-026",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Emma packed books into 6 boxes with 10 books in each box, and had 8 books left over. How many books did Emma have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "68"
+  },
+  {
+    "id": "canary-027",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Noah packed books into 9 boxes with 10 books in each box, and had 8 books left over. How many books did Noah have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "98"
+  },
+  {
+    "id": "canary-028",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla packed coins into 5 boxes with 10 coins in each box, and had 3 coins left over. How many coins did Carla have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "53"
+  },
+  {
+    "id": "canary-029",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Hassan packed buttons into 4 boxes with 6 buttons in each box, and had 3 buttons left over. How many buttons did Hassan have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "27"
+  },
+  {
+    "id": "canary-030",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ivy packed coins into 3 boxes with 11 coins in each box, and had 9 coins left over. How many coins did Ivy have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "42"
+  },
+  {
+    "id": "canary-031",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Liam packed cookies into 5 boxes with 4 cookies in each box, and had 2 cookies left over. How many cookies did Liam have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "22"
+  },
+  {
+    "id": "canary-032",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ben packed shells into 7 boxes with 9 shells in each box, and had 2 shells left over. How many shells did Ben have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "65"
+  },
+  {
+    "id": "canary-033",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Maya packed cookies into 6 boxes with 12 cookies in each box, and had 6 cookies left over. How many cookies did Maya have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "78"
+  },
+  {
+    "id": "canary-034",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Maya packed buttons into 6 boxes with 5 buttons in each box, and had 7 buttons left over. How many buttons did Maya have in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "37"
+  },
+  {
+    "id": "canary-035",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Grace reads 3 stickers each day for 7 days. How many stickers did Grace read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "21"
+  },
+  {
+    "id": "canary-036",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Kira reads 10 stickers each day for 6 days. How many stickers did Kira read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "60"
+  },
+  {
+    "id": "canary-037",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Alice reads 12 stickers each day for 4 days. How many stickers did Alice read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "48"
+  },
+  {
+    "id": "canary-038",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Diego reads 12 stamps each day for 6 days. How many stamps did Diego read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "72"
+  },
+  {
+    "id": "canary-039",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Carla reads 8 marbles each day for 13 days. How many marbles did Carla read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "104"
+  },
+  {
+    "id": "canary-040",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Emma reads 6 cookies each day for 13 days. How many cookies did Emma read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "78"
+  },
+  {
+    "id": "canary-041",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Liam reads 13 pencils each day for 8 days. How many pencils did Liam read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "104"
+  },
+  {
+    "id": "canary-042",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Priya reads 10 stickers each day for 5 days. How many stickers did Priya read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "50"
+  },
+  {
+    "id": "canary-043",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Jamal reads 10 cards each day for 11 days. How many cards did Jamal read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "110"
+  },
+  {
+    "id": "canary-044",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Kira reads 4 stickers each day for 6 days. How many stickers did Kira read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "24"
+  },
+  {
+    "id": "canary-045",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Frank reads 14 cards each day for 8 days. How many cards did Frank read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "112"
+  },
+  {
+    "id": "canary-046",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Liam reads 11 apples each day for 4 days. How many apples did Liam read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "44"
+  },
+  {
+    "id": "canary-047",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Jamal reads 5 marbles each day for 12 days. How many marbles did Jamal read in total?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "60"
+  },
+  {
+    "id": "canary-048",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ivy has 71 shells and Liam has 7 shells. How many more shells does Ivy have than Liam?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "64"
+  },
+  {
+    "id": "canary-049",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Hassan has 88 pencils and Kira has 10 pencils. How many more pencils does Hassan have than Kira?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "78"
+  },
+  {
+    "id": "canary-050",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Grace has 70 oranges and Hassan has 12 oranges. How many more oranges does Grace have than Hassan?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "58"
+  },
+  {
+    "id": "canary-051",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Hassan has 82 shells and Grace has 17 shells. How many more shells does Hassan have than Grace?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "65"
+  },
+  {
+    "id": "canary-052",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Alice has 63 pencils and Alice has 20 pencils. How many more pencils does Alice have than Alice?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "43"
+  },
+  {
+    "id": "canary-053",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Ivy has 80 cards and Grace has 13 cards. How many more cards does Ivy have than Grace?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "67"
+  },
+  {
+    "id": "canary-054",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Omar has 74 pencils and Liam has 24 pencils. How many more pencils does Omar have than Liam?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "50"
+  },
+  {
+    "id": "canary-055",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Diego has 53 apples and Hassan has 7 apples. How many more apples does Diego have than Hassan?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "46"
+  },
+  {
+    "id": "canary-056",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Grace has 60 pencils and Priya has 11 pencils. How many more pencils does Grace have than Priya?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "49"
+  },
+  {
+    "id": "canary-057",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Priya has 69 marbles and Liam has 24 marbles. How many more marbles does Priya have than Liam?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "45"
+  },
+  {
+    "id": "canary-058",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Diego has 81 stickers and Maya has 25 stickers. How many more stickers does Diego have than Maya?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "56"
+  },
+  {
+    "id": "canary-059",
+    "benchmark": "canary",
+    "prompt": "[gMASK]<sop><|system|>Reasoning Effort: Max<|system|>You are a helpful assistant.<|user|>Priya has 80 apples and Frank has 27 apples. How many more apples does Priya have than Frank?\n\nSolve step by step. End your response with '#### <final numeric answer>'.<|assistant|><think>",
+    "gold": "53"
+  }
+]

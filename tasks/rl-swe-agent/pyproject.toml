@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-swe-agent-mini-slime"
+version = "0.1.0"
+description = "mini_slime: starting implementation for multi-turn terminal-agent RL with the pinned Harbor worker and Miles sessions"
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27,<1", "pyarrow>=17", "safetensors>=0.5"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "torch>=2.9"]
+# GPU packages come from the pinned runtime image; do not resolve over its stack.
+
+[tool.setuptools.packages.find]
+include = ["mini_slime*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

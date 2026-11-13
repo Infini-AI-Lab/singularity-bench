@@ -1,0 +1,21 @@
+{
+  "env": {
+    "CLAUDE_CODE_SHELL_PREFIX": "/opt/breakwater-runtime/worker-exec",
+    "CLAUDE_CODE_SHELL": "/bin/bash",
+    "SHELL": "/bin/bash",
+    "DISABLE_AUTOUPDATER": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1"
+  },
+  "disableAllHooks": true,
+  "allowManagedHooksOnly": true,
+  "allowManagedMcpServersOnly": true,
+  "allowedMcpServers": [],
+  "strictKnownMarketplaces": [],
+  "disableSideloadFlags": true,
+  "allowManagedPermissionRulesOnly": true,
+  "permissions": {
+    "deny": ["Read(//opt/author-cli/**)", "Read(//proc/**)"]
+  }
+}

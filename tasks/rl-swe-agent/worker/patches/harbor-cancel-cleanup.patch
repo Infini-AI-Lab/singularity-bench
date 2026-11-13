@@ -1,0 +1,99 @@
+--- a/agent_server/trial_runner.py
++++ b/agent_server/trial_runner.py
+@@ -17,7 +17,7 @@
+ from pathlib import Path
+ from typing import Any
+ 
+-from agent_server.docker_ops import _compose_project_name
++from agent_server.docker_ops import _compose_project_name, _list_compose_projects, _run_docker
+ from agent_server.models import RunRequest
+ from agent_server.results import (
+     _error_response,
+@@ -408,6 +408,9 @@
+         compose_project = None
+         if os.getenv("HARBOR_ENV_TYPE", "docker").lower() != "daytona":
+             compose_project = _trial_compose_project(trial)
++        if compose_project:
++            # Register ownership in the parent before a cancelled trial can be killed.
++            print(_WORKER_PROJECT_MARKER + json.dumps(compose_project), flush=True)
+         result = await trial.run()
+ 
+         reward, eval_report = _extract_reward(result)
+@@ -431,6 +434,34 @@
+ 
+ 
+ _WORKER_RESULT_MARKER = "[trial_worker] RESULT "
++_WORKER_PROJECT_MARKER = "[trial_worker] PROJECT "
++
++
++async def _cleanup_cancelled_projects(owned_projects: set[str]) -> None:
++    """Remove only Docker resources owned by the cancelled subprocess."""
++    if not owned_projects:
++        return
++    live = await _list_compose_projects()
++    targets = {project for project in live
++               if any(project == owned or project.startswith(owned + "__")
++                      for owned in owned_projects)} | owned_projects
++    for project in sorted(targets):
++        label = f"label=com.docker.compose.project={project}"
++        failed = False
++        for resource, list_args, remove_args in (
++            ("container", ("ps", "-aq"), ("rm", "--force")),
++            ("network", ("network", "ls", "-q"), ("network", "rm")),
++            ("volume", ("volume", "ls", "-q"), ("volume", "rm")),
++        ):
++            rc, out, err = await _run_docker("docker", *list_args, "--filter", label)
++            if not rc and out.strip():
++                rc, _, err = await _run_docker("docker", *remove_args, *out.split())
++            if rc:
++                failed = True
++                logger.error("Cancelled trial %s %s cleanup failed: %s", project, resource, err)
++        if not failed:
++            _state.trial_projects.discard(project)
++            logger.info("Cancelled trial project cleaned: %s", project)
+ 
+ 
+ async def run_trial_in_subprocess(request: RunRequest) -> dict[str, Any]:
+@@ -457,15 +488,38 @@
+         stdout=asyncio.subprocess.PIPE,
+         stderr=asyncio.subprocess.PIPE,
+     )
++    owned_projects: set[str] = set()
++    stdout_lines: list[bytes] = []
++
++    async def read_stdout():
++        async for line in proc.stdout:
++            stdout_lines.append(line)
++            text = line.decode(errors="replace").strip()
++            if text.startswith(_WORKER_PROJECT_MARKER):
++                project = json.loads(text[len(_WORKER_PROJECT_MARKER):])
++                if (not isinstance(project, str) or project != _compose_project_name(project)
++                        or not project.startswith(_compose_project_name(request.instance_id) + "__")):
++                    raise ValueError("Invalid subprocess compose project")
++                owned_projects.add(project)
++                _state.trial_projects.add(project)
++
++    stdout_task = asyncio.create_task(read_stdout())
++    stderr_task = asyncio.create_task(proc.stderr.read())
+     try:
+-        out, err = await proc.communicate(blob.encode())
++        proc.stdin.write(blob.encode())
++        await proc.stdin.drain()
++        proc.stdin.close()
++        await proc.wait()
+     except asyncio.CancelledError:
+-        # On /flush the awaiting task is cancelled; the child is NOT reaped
+-        # automatically, so it would keep running the full trial (and holding a
+-        # Daytona sandbox) until it finishes. Kill and reap it before re-raising.
+         proc.kill()
+         await proc.wait()
++        await stdout_task
++        await stderr_task
++        await _cleanup_cancelled_projects(owned_projects)
+         raise
++    await stdout_task
++    err = await stderr_task
++    out = b"".join(stdout_lines)
+     for line in reversed(out.decode(errors="replace").splitlines()):
+         if line.startswith(_WORKER_RESULT_MARKER):
+             result = json.loads(line[len(_WORKER_RESULT_MARKER):])

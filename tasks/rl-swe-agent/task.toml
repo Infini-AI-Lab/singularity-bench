@@ -1,0 +1,31 @@
+version = "1.0"
+
+# Launched with breakwater/run.py, which runs authoring, the evaluation stage and the final verifier in three
+# separate containers; the task contract is breakwater.json. The held-out score comes from the trusted host
+# evaluator in evaluation/, run on the sealed checkpoint after the integrity review (evaluation/README.md).
+
+[metadata]
+author_name = "InfiniAILab"
+author_email = "yangzho6@andrew.cmu.edu"
+difficulty_explanation = "Train GLM-4.7-Flash with multi-turn agentic RL on the 655 OpenThoughts-Agent-v1-RL training tasks within 12 hours on four GB300 GPUs; scored by the mean resolve rate on 73 held-out development tasks and 100 SWE-bench Verified tasks"
+category = "Algorithm Auto Research"
+tags = ["RL", "Post-Training", "Terminal", "Harbor", "GLM"]
+
+[verifier]
+# Final verifier (breakwater/verifier.py): a separate read-only container that checks the sealed evidence and
+# runs the integrity judge.
+environment_mode = "separate"
+timeout_sec = 21600.0
+
+[agent]
+# Authoring budget: 12 hours on four GB300 GPUs.
+timeout_sec = 43200.0
+
+[environment]
+# environment/build.sh builds the task runtime; the protected author image (breakwater/author/Dockerfile) is
+# built on top of it.
+docker_image = "rl-swe-agent:local"
+build_timeout_sec = 7200.0
+gpus = 4
+gpu_types = ["GB300"]
+storage_mb = 1000000

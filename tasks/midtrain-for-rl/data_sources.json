@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "base_model": {
+    "repo": "meta-llama/Llama-3.2-1B",
+    "description": "Llama-3.2-1B-Base: the pretrained base model, not Llama-3.2-1B-Instruct.",
+    "repo_type": "model",
+    "revision": "4e20de362430cd3b72f300e6b0f18e50e7166e08",
+    "path": "Llama-3.2-1B",
+    "license": "llama3.2",
+    "include": [
+      "LICENSE.txt",
+      "USE_POLICY.md",
+      "config.json",
+      "generation_config.json",
+      "model.safetensors",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "dclm-edu",
+      "kind": "dclm",
+      "repo": "HuggingFaceTB/dclm-edu",
+      "revision": "dbad8ad71224482740cd9c9d353591adbf62fe04",
+      "license": "cc-by-4.0",
+      "include": ["data/*.parquet"],
+      "sample_shards": 100,
+      "sample_seed": 20260930,
+      "slice_column": "edu_int_score",
+      "slice_min": 4,
+      "description": "Educational web text: DCLM-Baseline documents annotated by the FineWeb-Edu classifier (edu_int_score >= 2 in the published corpus). Two derived views: sample/ holds 100 randomly selected unfiltered shards, and edu_int_score_ge4/ holds every document with edu_int_score >= 4 from all 1,769 shards."
+    },
+    {
+      "name": "nemotron-post-training-v1",
+      "repo": "nvidia/Nemotron-Post-Training-Dataset-v1",
+      "revision": "74e23eb6f830fef4a9e96a92f6f6262214cbb9a8",
+      "license": "cc-by-4.0",
+      "include": ["data/*.parquet"],
+      "description": "Synthetic post-training conversations with reasoning traces; splits chat, code, math, stem and tool (file-name prefixes)."
+    },
+    {
+      "name": "megamath-web-pro",
+      "repo": "LLM360/MegaMath",
+      "revision": "3cbc64616594d6bc8759abaa0b2a71858f880f0d",
+      "license": "odc-by",
+      "include": ["megamath-web-pro/*.parquet"],
+      "strip_prefix": "megamath-web-pro/",
+      "description": "High-quality mathematical web documents (the MegaMath-Web-Pro subset of MegaMath)."
+    },
+    {
+      "name": "mixture-of-thoughts",
+      "repo": "open-r1/Mixture-of-Thoughts",
+      "revision": "e55fa28006c0d0ec60fb3547520f775dd42d02cd",
+      "license": null,
+      "include": ["math/*.parquet", "code/*.parquet", "science/*.parquet"],
+      "description": "Verified long reasoning traces for math, code and science problems (the per-domain subsets; the repository's all/ subset is their union)."
+    },
+    {
+      "name": "opencodereasoning-2",
+      "kind": "ocr2",
+      "repo": "nvidia/OpenCodeReasoning-2",
+      "revision": "eadf535931451525f3e5621d0f960c240bc62fd9",
+      "license": "cc-by-4.0",
+      "include": ["train/python/*.parquet", "train/cpp/*.parquet"],
+      "strip_prefix": "train/",
+      "question_sources": {
+        "taco": {"repo": "BAAI/TACO", "revision": "d593ed0a2becbbc952230bb89be09189bf1056dc", "include": ["train/*.arrow", "test/*.arrow"]},
+        "apps": {"repo": "codeparrot/apps", "revision": "21e74ddf8de1a21436da12e3e653065c5213e9d1", "include": ["train.jsonl", "test.jsonl"]},
+        "code_contests": {"repo": "deepmind/code_contests", "revision": "802411c3010cb00d1b05bad57ca77365a3c699d6", "include": ["data/*.parquet"]},
+        "open-r1/codeforces": {"repo": "open-r1/codeforces", "revision": "fbe3f6e903ee854eec2e69e9d96d0306cde59baf", "include": ["data/*.parquet"]}
+      },
+      "description": "Python and C++ competitive-programming solutions with reasoning traces, critiques, judgements and pass rates. The published files leave the question field as '-'; preparation fills it from TACO, APPS, CodeContests and Codeforces exactly as the dataset card describes."
+    },
+    {
+      "name": "openthoughts3",
+      "repo": "open-thoughts/OpenThoughts3-1.2M",
+      "revision": "61bcf9d4eb38b30295efc2021227a63cc5bb34c8",
+      "license": "apache-2.0",
+      "include": ["data/*.parquet"],
+      "description": "Reasoning traces for math, code and science questions (domain column)."
+    },
+    {
+      "name": "wildchat-1m",
+      "repo": "allenai/WildChat-1M",
+      "revision": "7d6490e462285cf85d91eabea0f9a954fbddcd1f",
+      "license": "odc-by",
+      "include": ["data/*.parquet"],
+      "description": "Real user conversations with ChatGPT models (model column identifies GPT-3.5 versus GPT-4 responses)."
+    },
+    {
+      "name": "tulu-3-sft-personas-instruction-following",
+      "repo": "allenai/tulu-3-sft-personas-instruction-following",
+      "revision": "fe0c7d350c9b4542b8d829a6f1daa1c259f0ba0e",
+      "license": "odc-by",
+      "include": ["data/*.parquet"],
+      "description": "Persona-driven synthetic instruction-following conversations."
+    },
+    {
+      "name": "tulu-3-sft-personas-math",
+      "repo": "allenai/tulu-3-sft-personas-math",
+      "revision": "46add032f5203fd96efbd54d074198981ed57d25",
+      "license": null,
+      "include": ["data/*.parquet"],
+      "description": "Persona-driven synthetic math conversations."
+    },
+    {
+      "name": "tulu-3-sft-personas-math-grade",
+      "repo": "allenai/tulu-3-sft-personas-math-grade",
+      "revision": "275a3e54d65643e39930dde5372f384e6136da88",
+      "license": null,
+      "include": ["data/*.parquet"],
+      "description": "Persona-driven synthetic grade-school math conversations."
+    },
+    {
+      "name": "tulu-3-sft-personas-algebra",
+      "repo": "allenai/tulu-3-sft-personas-algebra",
+      "revision": "e76e37b6d35407f18bab2b500d88cff68637a558",
+      "license": null,
+      "include": ["data/*.parquet"],
+      "description": "Persona-driven synthetic algebra conversations."
+    },
+    {
+      "name": "tulu-3-sft-personas-code",
+      "repo": "allenai/tulu-3-sft-personas-code",
+      "revision": "1412abe88dd2976af977260788e033013449f7b2",
+      "license": null,
+      "include": ["data/*.parquet"],
+      "description": "Persona-driven synthetic coding conversations."
+    },
+    {
+      "name": "ultrachat-200k",
+      "repo": "HuggingFaceH4/ultrachat_200k",
+      "revision": "8049631c405ae6576f93f445c6b8166f76f5505a",
+      "license": "mit",
+      "include": ["data/*.parquet"],
+      "description": "Filtered multi-turn synthetic assistant dialogues (SFT and generation splits)."
+    },
+    {
+      "name": "starcoderdata",
+      "repo": "bigcode/starcoderdata",
+      "revision": "9fc30b578cedaec69e47302df72cf00feed7c8c4",
+      "license": "The Stack terms of use; per-file original licenses",
+      "gated": true,
+      "include": ["*.parquet"],
+      "description": "Permissively licensed GitHub source code in 86 languages, plus GitHub issues, Jupyter notebooks and Git commits (one directory per language or source)."
+    },
+    {
+      "name": "opc-annealing-algorithmic-corpus",
+      "repo": "OpenCoder-LLM/opc-annealing-corpus",
+      "revision": "078e4bc1d39725cccc18514d2e3278a3fe191110",
+      "license": "odc-by",
+      "include": ["algorithmic_corpus/*.jsonl"],
+      "strip_prefix": "algorithmic_corpus/",
+      "description": "Algorithm-related source files selected from the RefineCode code corpus."
+    }
+  ],
+  "dev_evals": {
+    "seed": 20260930,
+    "math": {
+      "math": {"repo": "EleutherAI/hendrycks_math", "revision": "21a5633873b6a120296cce3e2df9d5550074f4a3", "include": ["*/test-*.parquet"], "exclude_repo": "HuggingFaceH4/MATH-500", "exclude_revision": "6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be", "exclude_file": "test.jsonl", "sample": 500},
+      "aime": {"repo": "AI-MO/aimo-validation-aime", "revision": "13f9e12f613e720c2a2b2f345dd04b998a29494d", "file": "data/train-00000-of-00001.parquet", "years": ["2022", "2023"]}
+    },
+    "science": {
+      "supergpqa": {"repo": "m-a-p/SuperGPQA", "revision": "4430d4458112c7d4497fdcf94d7cc223313d6acf", "file": "SuperGPQA-all.jsonl", "discipline": "Science", "sample": 1000}
+    },
+    "code": {
+      "livecodebench_v1": {"repo": "livecodebench/code_generation_lite", "revision": "0fe84c3912ea0c4d4a78037083943e8f0c4dd505", "file": "test.jsonl", "max_tests": 12, "max_test_bytes": 1000000}
+    }
+  }
+}

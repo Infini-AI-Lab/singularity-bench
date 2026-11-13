@@ -1,0 +1,62 @@
+{
+ "schema_version": 4,
+ "model_ids": [
+  "deepseek-chat-v3.1",
+  "deepseek-v3.2",
+  "gemma-4-26b-a4b-it",
+  "gemma-4-31b-it",
+  "gpt-oss-120b",
+  "gpt-oss-20b",
+  "hy-mt2-1.8b",
+  "kimi-k2.5",
+  "kimi-k2.6",
+  "kimi-k2.7-code",
+  "l3-lunaris-8b",
+  "llama-3.1-8b-instruct",
+  "llama-3.2-1b-instruct",
+  "llama-3.2-3b-instruct",
+  "llama-3.3-70b-instruct",
+  "ministral-3b-2512",
+  "ministral-8b-2512",
+  "mistral-small-2603",
+  "mistral-small-3.2-24b-instruct",
+  "mythomax-l2-13b",
+  "nemotron-3-super-120b-a12b",
+  "qwen3-235b-a22b-2507",
+  "qwen3-next-80b-a3b-instruct",
+  "qwen3.5-122b-a10b",
+  "qwen3.5-397b-a17b",
+  "qwen3.5-9b",
+  "qwen3.8-27b",
+  "voxtral-small-24b-2507"
+ ],
+ "cell_weights": {
+  "load-0.75": 0.3333333333333333,
+  "load-1.0": 0.3333333333333333,
+  "load-1.25": 0.3333333333333333
+ },
+ "qualification": {
+  "workload": "development-provisional",
+  "catalogue": "development"
+ },
+ "cases": [
+  {
+   "name": "load-0.75",
+   "load_multiplier": 0.75,
+   "trace_sha256": "4409b1c5adadbdb8bc057c29d9ece4c575343ba5715364f436fc68943a8989dc"
+  },
+  {
+   "name": "load-1.0",
+   "load_multiplier": 1.0,
+   "trace_sha256": "7ff0fd029044c51f23732c350598c282aa984f64ec11dfdfc7088ae4dd51ee4d"
+  },
+  {
+   "name": "load-1.25",
+   "load_multiplier": 1.25,
+   "trace_sha256": "39a1c73c380aeb2ffc878f4aeb44e82e27eeb7e8dae5dff236d0c5edcaed86ea"
+  }
+ ],
+ "public_catalogue_sha256": "29fab3cda60789eaa9152840456b8390dbb705919db1d350a61ea2682b879eb0",
+ "setup_s": 900,
+ "session_retries": 2
+}
