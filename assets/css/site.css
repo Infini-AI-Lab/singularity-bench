@@ -311,10 +311,11 @@ h1 .q { display: block; margin-top: .12em; background: var(--blue-gradient); -we
 .plot .nm { font-size: 12.5px; fill: var(--ink); }
 .plot .hn { font-size: 11.5px; fill: var(--ink-3); }
 .plot .fail { font-size: 12px; font-weight: 700; fill: var(--bad); }
+.plot .fail.pend { font-weight: 600; font-style: italic; fill: var(--ink-3); }
 .plot .bar { transition: opacity .2s; }
 .plot.dim .bar:not(.hot) { opacity: .35; }
 .plot .hit { fill: transparent; cursor: pointer; }
-.tip { position: absolute; z-index: 6; pointer-events: none; min-width: 170px; max-width: 320px; padding: 10px 12px; border-radius: 9px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 28px rgba(32, 33, 36, .16); font-size: 13px; line-height: 1.4; color: var(--ink-2); transform: translate(-50%, -100%) translateY(-14px); }
+.tip { position: absolute; z-index: 6; pointer-events: none; width: max-content; min-width: 170px; max-width: min(320px, calc(100% - 8px)); padding: 10px 12px; border-radius: 9px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 28px rgba(32, 33, 36, .16); font-size: 13px; line-height: 1.4; color: var(--ink-2); transform: translate(-50%, -100%) translateY(-14px); }
 .tip b { color: var(--ink); font-weight: 600; }
 .tip .th { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 14px; color: var(--ink); font-weight: 600; white-space: nowrap; }
 .tip .th img { width: 16px; height: 16px; }
@@ -378,6 +379,7 @@ table.res { width: 100%; min-width: 980px; border-collapse: collapse; font-size:
 .res .second { background: #eef3fd; }
 .res .star { color: var(--accent); font-weight: 700; margin-left: 2px; }
 .res .x { color: var(--bad); font-weight: 700; }
+.res .pend { font-size: 12.5px; font-style: italic; color: var(--ink-3); }
 .res tr.prop td { background-image: linear-gradient(rgba(32, 33, 36, .028), rgba(32, 33, 36, .028)); }
 .res tr.human td { border-top: 2px solid var(--line); font-style: italic; }
 .res-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }

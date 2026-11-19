@@ -31,6 +31,9 @@
   };
   const debounce = (fn, ms) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; };
   const money = v => `$${(+v).toFixed(2)}`;
+  // a pending task can lack a cost (null); the agent's total then leaves it out
+  const taskMoney = (a, k) => (a.taskCost[k] === null ? 'pending' : money(a.taskCost[k]));
+  const totalMoney = a => money(a.total) + (a.costPending ? ' + pending' : '');
   const tipPlace = (plot, tip, x, y) => {
     tip.hidden = false;
     const w = tip.offsetWidth, pw = plot.clientWidth;
@@ -178,11 +181,12 @@
     function labelsFor(m) {
       bars.forEach(b => {
         const s = m === 'index' ? b.a.index : b.a.score[m];
-        const failed = s === null;
+        const failed = s === null, pend = failed && b.a.pending.includes(m);
         b.vt.style.opacity = '';
         b.vt.textContent = failed ? '' : s;
-        b.ft.textContent = failed ? (L.v ? '✕' : '✕ failed') : '';
-        b.g.setAttribute('aria-label', `${b.a.name}: ${failed ? 'failed' : s}`);
+        b.ft.textContent = pend ? 'pending' : failed ? (L.v ? '✕' : '✕ failed') : '';
+        b.ft.classList.toggle('pend', pend);
+        b.g.setAttribute('aria-label', `${b.a.name}: ${pend ? 'pending' : failed ? 'failed' : s}`);
       });
     }
     const ranks = m => {
@@ -220,7 +224,7 @@
       });
     }
 
-    sub.textContent = 'Mean of the six task scores, each relative to its human baseline. 1.0 matches the human baselines on average; a failed task counts as zero.';
+    sub.textContent = `Mean of the six task scores, each relative to its human baseline. 1.0 matches the human baselines on average; a failed task${AG.some(a => a.pending.length) ? ', or one still pending,' : ''} counts as zero.`;
 
     // tooltip
     bars.forEach(b => {
@@ -228,12 +232,12 @@
         plot.classList.add('dim'); b.g.classList.add('hot');
         const a = b.a, m = metric;
         let body;
-        if (m === 'index') body = `<div class="row"><span>Singularity-Index</span><span>${a.index}</span></div><div class="row"><span>API cost, all six tasks</span><span>${money(a.total)}</span></div>`;
+        if (m === 'index') body = `<div class="row"><span>Singularity-Index</span><span>${a.index}</span></div><div class="row"><span>API cost, all six tasks</span><span>${totalMoney(a)}</span></div>`;
         else {
-          const t = SB.task(m), s = a.score[m];
-          body = `<div class="row"><span>${t.metric}</span><span>${s === null ? 'failed' : s}</span></div>` +
-            `<div class="row"><span>Relative to human (${t.humanText})</span><span>${s === null ? '0' : a.ratio[m].toFixed(2)}×</span></div>` +
-            `<div class="row"><span>API cost on this task</span><span>${money(a.taskCost[m])}</span></div>`;
+          const t = SB.task(m), s = a.score[m], pend = a.pending.includes(m);
+          body = `<div class="row"><span>${t.metric}</span><span>${s === null ? (pend ? 'pending' : 'failed') : s}</span></div>` +
+            `<div class="row"><span>Relative to human (${t.humanText})</span><span>${s === null ? (pend ? 'pending' : '0×') : a.ratio[m].toFixed(2) + '×'}</span></div>` +
+            `<div class="row"><span>API cost on this task</span><span>${taskMoney(a, m)}</span></div>`;
         }
         tip.innerHTML = head(a) + body;
         const box = b.shape.getBBox();
@@ -303,7 +307,7 @@
     let sx, sy, dom;
     function scales(m) {
       const d = dataFor(m);
-      const xs = d.map(p => p.x);
+      const xs = d.filter(p => p.x !== null).map(p => p.x);
       let lo = Math.min(...xs) / 1.7, hi = Math.max(...xs) * 1.9;
       let ymin = 0, ymax = 1.45, step = .2;
       if (m !== 'all') {
@@ -426,9 +430,11 @@
         p.g.style.opacity = f ? .55 : 1;
       });
       if (failures) {
-        const failed = d.filter(p => p.failed);
-        failures.hidden = failed.length === 0;
-        failures.textContent = failed.length ? `No valid metric (not plotted): ${failed.map(p => `${p.a.name} (${money(p.x)})`).join('; ')}.` : '';
+        const list = ps => ps.map(p => (p.x === null ? p.a.name : `${p.a.name} (${money(p.x)})`)).join('; ');
+        const pend = d.filter(p => p.failed && p.a.pending.includes(metric)), failed = d.filter(p => p.failed && !p.a.pending.includes(metric));
+        failures.hidden = failed.length + pend.length === 0;
+        failures.textContent = [failed.length ? `No valid metric (not plotted): ${list(failed)}.` : '',
+          pend.length ? `Pending (not plotted): ${list(pend)}.` : ''].filter(Boolean).join(' ');
       }
       const fin = () => { drawFrontier(d, animate); drawLabels(d); };
       if (!animate) { pts.forEach((p, i) => { p.x = to[i].x; p.y = to[i].y; p.g.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); }); fin(); return; }
@@ -477,11 +483,11 @@
         const a = p.a;
         let body;
         if (metric === 'all') {
-          body = `<div class="row"><span>Singularity-Index</span><span>${a.index}</span></div><div class="row"><span>API cost, all six tasks</span><span>${money(a.total)}</span></div><div class="mini">` +
-            LIFE.map(k => { const r = a.ratio[k], t = SB.task(k); return `<span>${t.name}</span><span class="tr" style="--h:50%"><i style="--c:${t.color};width:${Math.min(100, r / 2 * 100).toFixed(1)}%"></i></span><span>${a.score[k] === null ? '✕' : r.toFixed(2) + '×'}</span>`; }).join('') + '</div>';
+          body = `<div class="row"><span>Singularity-Index</span><span>${a.index}</span></div><div class="row"><span>API cost, all six tasks</span><span>${totalMoney(a)}</span></div><div class="mini">` +
+            LIFE.map(k => { const r = a.ratio[k], t = SB.task(k); return `<span>${t.name}</span><span class="tr" style="--h:50%"><i style="--c:${t.color};width:${Math.min(100, r / 2 * 100).toFixed(1)}%"></i></span><span>${a.score[k] === null ? (a.pending.includes(k) ? 'pending' : '✕') : r.toFixed(2) + '×'}</span>`; }).join('') + '</div>';
         } else {
           const t = SB.task(metric), s = a.score[metric];
-          body = `<div class="row"><span>${t.metric}${t.lower ? ' (lower is better)' : ''}</span><span>${s === null ? 'failed' : s}</span></div><div class="row"><span>Human baseline (${t.baseShort})</span><span>${t.humanText}</span></div><div class="row"><span>API cost on this task</span><span>${money(a.taskCost[metric])}</span></div>`;
+          body = `<div class="row"><span>${t.metric}${t.lower ? ' (lower is better)' : ''}</span><span>${s === null ? (a.pending.includes(metric) ? 'pending' : 'failed') : s}</span></div><div class="row"><span>Human baseline (${t.baseShort})</span><span>${t.humanText}</span></div><div class="row"><span>API cost on this task</span><span>${taskMoney(a, metric)}</span></div>`;
         }
         tip.innerHTML = head(a) + body;
         tipPlace(plot, tip, p.x, p.y - 16);
@@ -646,15 +652,23 @@
       h += `<tr class="${a.prop ? 'prop' : ''}"><td><span class="an"><img src="${a.logo}" alt="">${a.model}<span class="h">+ ${a.harness}</span></span></td>`;
       COLS.forEach((k, j) => {
         const s = a.score[k];
-        if (s === null) { h += `<td><span class="x">✕</span><span class="c">${money(a.c[j])}</span></td>`; return; }
+        if (s === null) {
+          h += `<td>${a.pending.includes(k) ? '<span class="pend">pending</span>' : '<span class="x">✕</span>'}<span class="c">${a.c[j] === null ? '' : money(a.c[j])}</span></td>`;
+          return;
+        }
         const beat = better(k, +s, +SB.task(k).humanText);
         h += `<td class="${cls(+s, ranks[k])}">${s}${beat ? '<span class="star">★</span>' : ''}<span class="c">${money(a.c[j])}</span></td>`;
       });
-      h += `<td class="${a.cost === costs[0] ? 'best' : a.cost === costs[1] ? 'second' : ''}">${money(a.total)}</td>`;
+      h += `<td class="${a.cost === costs[0] ? 'best' : a.cost === costs[1] ? 'second' : ''}">${money(a.total)}${a.costPending ? '<span class="c">+ pending</span>' : ''}</td>`;
       h += `<td class="${a.idx === idxs[0] ? 'best' : a.idx === idxs[1] ? 'second' : ''}"><b>${a.index}</b></td></tr>`;
     });
     h += `<tr class="human"><td>Human baseline</td>${COLS.map((k, j) => `<td class="${cls(+human.s[j], ranks[k])}">${human.s[j]}</td>`).join('')}<td>—</td><td class="${idxs[1] === 1 ? 'second' : ''}">1.000</td></tr></tbody>`;
     table.innerHTML = h;
+    const note = document.querySelector('[data-pending-note]');
+    if (note) {
+      note.hidden = !AG.some(a => a.pending.length);
+      if (AG.some(a => a.costPending)) note.textContent = ' “Pending” marks a result that isn’t final yet: it counts as zero, and its API cost is not yet in the total.';
+    }
   }
 
   SB.charts = { Leaderboard, CostChart, EffortChart, ResultsTable, tween, onceVisible };

@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
-<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/css/site.css?v=20261119-gpt62-2">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -137,7 +137,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b data-count="6">6</b><span>end-to-end tasks, from pre-training to cluster orchestration</span></div>
-    <div class="stat"><b data-count="11">11</b><span>agents built from 7 frontier models and 2 harnesses</span></div>
+    <div class="stat"><b data-count="12">12</b><span>agents built from 8 frontier models and 2 harnesses</span></div>
     <div class="stat"><b data-count="1.251">1.251</b><span>top Singularity-Index, Opus 5.5 + Claude Code (human baselines = 1)</span></div>
     <div class="stat"><b><span data-count="9">9</span>/10</b><span>OWASP agentic risk categories covered by our red-teaming</span></div>
   </div>
@@ -313,19 +313,19 @@
       </div>
     </div>
     <p class="csub" data-lb-sub></p>
-    <div class="plot"><svg role="img" aria-label="Bar chart of the 11 agents ranked by Singularity Index"></svg><div class="tip" hidden></div></div>
+    <div class="plot"><svg role="img" aria-label="Bar chart of the 12 agents ranked by Singularity Index"></svg><div class="tip" hidden></div></div>
     <div class="cfoot"><span>Striped bars: Codex · solid bars: Claude Code · hover a bar for details</span></div>
   </figure>
   <div class="finds">
-    <div class="find"><b>Top agent exceeds or is on par with every mature baseline</b>Opus 5.5 + Claude Code beats the baseline on five tasks and matches Miles on post-training (0.533 vs. 0.539). The other 10 agents average 0.60.</div>
-    <div class="find"><b>Proprietary agents lead open-weight ones</b>Proprietary agents average 1.01 and open-weight agents 0.53. The best open-weight agent is DeepSeek V4.1 Flash + Codex at 0.697.</div>
+    <div class="find"><b>Top agent exceeds or is on par with every mature baseline</b>Opus 5.5 + Claude Code beats the baseline on five tasks and matches Miles on post-training (0.533 vs. 0.539). The other 11 agents average 0.64.</div>
+    <div class="find"><b>Proprietary agents lead open-weight ones</b>Proprietary agents average 0.99 and open-weight agents 0.53. The best open-weight agent is DeepSeek V4.1 Flash + Codex at 0.697.</div>
     <div class="find"><b>The harness matters</b>Claude Code lifts GLM 5.3 from 0.373 to 0.656 and MiniMax M3 from 0.223 to 0.607, while Codex lifts DeepSeek V4.1 Flash from 0.487 to 0.697 and Kimi K3 from 0.599 to 0.624.</div>
   </div>
   <p class="pcontact">To add your agent, email its scores and API costs on all six tasks to <span data-mail></span>.</p>
   <details class="fold">
     <summary><h3>Full results</h3></summary>
     <div class="res-scroll"><table class="res" id="restbl"></table></div>
-    <p class="res-note">Each cell gives the task score and, below it, the agent’s API spend on that task in USD; costs exclude GPU time. ★ beats the human baseline; ✕ marks a failed or rejected submission. Blue marks the best and light blue the second-best value in each column, including the human baseline. Shaded rows use proprietary models.</p>
+    <p class="res-note">Each cell gives the task score and, below it, the agent’s API spend on that task in USD; costs exclude GPU time. ★ beats the human baseline; ✕ marks a failed or rejected submission.<span data-pending-note hidden> “Pending” marks a score that isn’t final yet; it counts as zero until then.</span> Blue marks the best and light blue the second-best value in each column, including the human baseline. Shaded rows use proprietary models.</p>
     <p class="res-note"><b>Producing this table required approximately 4,000 GB300 hours, around 350 GB300 hours per agent evaluation.</b></p>
   </details>
 </section>
@@ -570,6 +570,7 @@
 <!-- ============ case studies ============ -->
 <section class="sec" id="cases">
   <h2>Case studies</h2>
+  <p class="sec-intro">These case studies cover the 11 agents in the paper.</p>
   <ul class="cases">
     <li class="case">
       <div class="case-row">
@@ -742,11 +743,11 @@
       </details>
       <details>
         <summary>Which agents are on the leaderboard?</summary>
-        <div class="ans"><p>Eleven agents that pair seven frontier models with two harnesses, Claude Code and Codex: Opus 5.5 and Opus 5 with Claude Code, GPT-6.1 Sol with Codex, and DeepSeek V4.1 Flash, GLM 5.3, Kimi K3, and MiniMax M3 with both harnesses.</p></div>
+        <div class="ans"><p>Twelve agents that pair eight frontier models with two harnesses, Claude Code and Codex: Opus 5.5 and Opus 5 with Claude Code, GPT-6.2 Sol and GPT-6.1 Sol with Codex, and DeepSeek V4.1 Flash, GLM 5.3, Kimi K3, and MiniMax M3 with both harnesses.</p></div>
       </details>
       <details>
         <summary>When does a submission fail?</summary>
-        <div class="ans"><p>When it produces no valid score or does not pass the task’s checks. A pre-training checkpoint, for example, must also generate the final words of private LAMBADA passages, which guards against models that leak future tokens. An inference engine must return the requested output length on at least 99% of finished requests and keep at least 95% of the reference accuracy on a hidden quality benchmark; six of the 11 engines score zero. Failed tasks count as zero in the index.</p></div>
+        <div class="ans"><p>When it produces no valid score or does not pass the task’s checks. A pre-training checkpoint, for example, must also generate the final words of private LAMBADA passages, which guards against models that leak future tokens. An inference engine must return the requested output length on at least 99% of finished requests and keep at least 95% of the reference accuracy on a hidden quality benchmark; six of the 12 engines score zero. Failed tasks count as zero in the index.</p></div>
       </details>
       <details>
         <summary>How do you stop agents from reward hacking?</summary>
@@ -793,9 +794,9 @@
   </div>
 </footer>
 
-<script defer src="assets/js/data.js"></script>
-<script defer src="assets/js/art.js"></script>
-<script defer src="assets/js/charts.js"></script>
-<script defer src="assets/js/main.js"></script>
+<script defer src="assets/js/data.js?v=20261119-gpt62-2"></script>
+<script defer src="assets/js/art.js?v=20261119-gpt62-2"></script>
+<script defer src="assets/js/charts.js?v=20261119-gpt62-2"></script>
+<script defer src="assets/js/main.js?v=20261119-gpt62-2"></script>
 </body>
 </html>

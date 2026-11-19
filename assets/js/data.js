@@ -59,7 +59,7 @@
       baseline: 'Miles + Published recipe (Harbor RL)', baseShort: 'Miles', human: 0.5388, humanText: '0.539' },
     { key: 'inf', name: 'Inference', id: 'serve-glm53-flash', color: '#e37400', group: 'Deployment',
       short: 'builds an FP8 serving engine', metric: 'Income (USD per GPU-hour)', unit: 'USD / GPU-hour',
-      sub: 'simulated income in USD per GPU-hour. Bars show the score relative to SGLang; labels show the raw income. Six of the 11 engines score zero.',
+      sub: 'simulated income in USD per GPU-hour. Bars show the score relative to SGLang; labels show the raw income. Six of the 12 engines score zero.',
       baseline: 'SGLang', baseShort: 'SGLang', human: 8.18, humanText: '8.18' },
     { key: 'clu', name: 'Cluster', id: 'cluster-serverless', color: '#12a4af', group: 'Deployment',
       short: 'orchestrates 28 models on 16 GPUs', metric: 'SLO score', unit: 'score',
@@ -82,13 +82,17 @@
     minimax: { color: '#E2167E', logo: 'assets/img/logos/minimax.svg', name: 'MiniMax' },
   };
 
-  // s: displayed task scores in COLS order (null = failed or rejected); c: API cost per task in USD.
-  const A = (model, harness, dev, prop, index, total, s, c) => ({ model, harness, dev, prop, index, total, s, c });
+  // s: displayed task scores in COLS order (null = failed or rejected); c: API cost per task in USD. pending: task keys
+  // whose result is not final yet; their s entry is null, so they count as zero, and the site labels them pending.
+  // A pending task's c entry can be null too (cost not known yet); total then leaves it out.
+  const A = (model, harness, dev, prop, index, total, s, c, pending = []) => ({ model, harness, dev, prop, index, total, s, c, pending });
   const AGENTS = [
     A('Opus 5.5', 'Claude Code', 'anthropic', true, '1.251', '425.41',
       ['12.77', '0.319', '0.533', '11.52', '0.468', '0.510'], ['44.70', '45.44', '61.51', '140.42', '85.27', '48.07']),
     A('GPT-6.1 Sol', 'Codex', 'openai', true, '0.968', '84.52',
       ['13.33', '0.178', '0.530', '9.70', '0.309', '0.392'], ['5.07', '8.46', '10.86', '42.78', '2.17', '15.18']),
+    A('GPT-6.2 Sol', 'Codex', 'openai', true, '0.955', '176.88',
+      ['13.17', '0.232', '0.467', '10.15', '0.206', '0.345'], ['12.73', '9.31', '13.48', '118.73', '1.73', '20.90']),
     A('Opus 5', 'Claude Code', 'anthropic', true, '0.802', '328.19',
       ['12.89', '0.201', '0.517', '1.47', '0.322', '0.318'], ['41.42', '63.03', '84.83', '97.20', '21.60', '20.11']),
     A('DeepSeek V4.1 Flash', 'Codex', 'deepseek', false, '0.697', '4.36',
@@ -116,6 +120,7 @@
     a.striped = a.harness === 'Codex';
     a.idx = +a.index;
     a.cost = +a.total;
+    a.costPending = a.c.some(v => v === null);
     // ratio to the human baseline per task key, perplexity inverted; failed tasks count as 0
     a.ratio = {};
     a.score = {};
@@ -124,7 +129,7 @@
       const t = TASKS.find(x => x.key === k);
       const v = a.s[j] === null ? null : +a.s[j];
       a.score[k] = a.s[j];
-      a.taskCost[k] = +a.c[j];
+      a.taskCost[k] = a.c[j] === null ? null : +a.c[j];
       a.ratio[k] = v === null ? 0 : (t.lower ? t.human / v : v / t.human);
     });
   });
