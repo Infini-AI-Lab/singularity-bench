@@ -32,21 +32,39 @@ with a Singularity-Index of 1.25**.
 
 ## Quick Start
 
-You need Linux hosts with NVIDIA GB300 GPUs (four per node; cluster-serverless uses four nodes), Docker with BuildKit,
-the NVIDIA Container Toolkit with a CDI specification, Python 3.11+, a provider key for the agent's model, and a
-Fireworks key for the integrity judge (DeepSeek V4.1 Flash). Each task README lists the assets it downloads.
+You need Linux hosts with NVIDIA GB300 GPUs (four per node; cluster-serverless uses four nodes), Python 3.11+, a
+provider key for the agent's model, and a Fireworks key for the integrity judge (DeepSeek V4.1 Flash). Breakwater runs
+every task on either of two backends:
 
-1. Prepare the task's assets and build its runtime image (`tasks/<name>/README.md`).
-2. Build the protected author image for your agent CLI (Claude Code or Codex), the task's verifier image and the
-   shared observer and gateway images ([breakwater/README.md](breakwater/README.md#running-a-task)).
-3. Copy `tasks/<name>/bindings.example.json`, point it at your prepared assets, and launch:
+- **Apptainer** (the default), for GPU clusters with Slurm and no Docker, such as most GB300 clusters: Apptainer 1.3
+  or newer (a user-level, non-setuid install suffices), no root. rl-swe-agent's training and evaluation sandboxes also
+  need rootless podman.
+- **Docker**, on a host with a Docker daemon: Docker with BuildKit and the NVIDIA Container Toolkit with a CDI
+  specification. It isolates the agent and its commands as separate users.
+
+Each task README lists the assets it downloads and the images it builds. Run everything from the repository root
+(`pip install -e .` also provides the commands as `breakwater ...`):
+
+1. Prepare the task's assets and build its runtime image (`tasks/<name>/README.md`): for Apptainer with
+   `tasks/<name>/environment/build-apptainer.sh` (the preparation scripts then take `PREPARE_RUNTIME=apptainer`), or
+   with Docker.
+2. Apptainer: install the pinned agent CLI and judge runner once (`python3 -m breakwater install-cli --dest CLI_DIR`,
+   `python3 -m breakwater install-judge --dest JUDGE_DIR`). Docker: build the protected author image for your agent
+   CLI (Claude Code or Codex), the task's verifier image and the shared observer and gateway images
+   ([breakwater/README.md](breakwater/README.md#on-docker)).
+3. Launch, with the asset root that holds the prepared assets:
    ```bash
-   python3 breakwater/run.py --task tasks/<name> --agent-image <name>-author:claude-code ... --run-dir RUN_DIR
+   # Apptainer (the default backend)
+   python3 -m breakwater run --task tasks/<name> --image <name>.sif --cli-dir CLI_DIR --judge-dir JUDGE_DIR ... \
+     --asset-root ASSET_ROOT --run-dir RUN_DIR
+   # Docker
+   python3 -m breakwater run --backend docker --task tasks/<name> --agent-image <name>-author:claude-code ... \
+     --asset-root ASSET_ROOT --run-dir RUN_DIR
    ```
 
 Reports land in `RUN_DIR/reports/`: the mechanical checks, the integrity verdict and the final `reward.json`. Two tasks
 add a scoring step after the run: coding-agent-harness grades the sealed harness on its grid of downstream tasks and
-driver models (`breakwater/grid.py`), and rl-swe-agent's held-out suites are scored on the host by
+driver models (`tasks/coding-agent-harness/grid/`), and rl-swe-agent's held-out suites are scored on the host by
 `tasks/rl-swe-agent/evaluation/`, which keeps the score only if the integrity review passed.
 
 ## Tasks
@@ -89,10 +107,29 @@ open-ended tasks whose evaluation may run the agent's own code:
 5. **Restricted intermediate stage**: a fresh, unprivileged container runs the submission before the read-only
    verifier recomputes the score and the LLM integrity judge reviews the evidence.
 
+Breakwater is a standalone framework: any task written to its specification runs under it.
+[breakwater/WRITING_TASKS.md](breakwater/WRITING_TASKS.md) shows how to write one, starting from the CPU-only
+[examples/word-count](examples/word-count), and [breakwater/SPEC.md](breakwater/SPEC.md) is the full specification.
+
+Each of the six tasks declares its contract in the `[breakwater]` tables of its `task.toml` (`python3 -m breakwater
+check tasks/<name>` prints it), and its README describes its evaluation in full. Beyond a workspace, an evaluation
+stage and a scorer, they use:
+
+| Task | Also uses |
+|---|---|
+| open-ended-nano-gpt | trusted runners for the submitted generation adapter; a failure reward of -1, since lower perplexity is better |
+| midtrain-for-rl | an operator's code-execution service that only the evaluation reaches; a checked record of the training data |
+| rl-swe-agent | an endpoint (the operator's Harbor sandbox worker) and inbound ports for its callbacks; a score deferred to a host evaluator |
+| serve-glm53-flash | a submitted server, graded from a fresh writable copy of the submission |
+| coding-agent-harness | budgeted model access for the agent's software; protected files; its own launcher for the downstream grid |
+| cluster-serverless | a remote GPU fleet: operator inputs and secrets, host hooks, and endpoints for each sandbox |
+
 ## Repository layout
 
 ```
 breakwater/                     the evaluation and safety framework (one copy, used by every task)
+  apptainer/                    its Apptainer backend
+examples/word-count/            a minimal CPU-only task to start your own from
 tasks/
   open-ended-nano-gpt/          pre-training
   midtrain-for-rl/              mid-training
@@ -102,9 +139,20 @@ tasks/
   cluster-serverless/           cluster management
 ```
 
-Each task folder holds `instruction.md` (what the agent sees), `task.toml`, `environment/` (the agent's runtime),
-`tests/` (grading), its asset preparation scripts, `breakwater.json` (the Breakwater contract),
-`bindings.example.json` and a README with the full protocol.
+Each task folder holds `instruction.md` (what the agent sees), `task.toml` (a Harbor task with the Breakwater contract
+in its `[breakwater]` tables), `environment/` (the agent's runtime: its Dockerfile and Apptainer definition), `tests/`
+(the task's trusted code and grading), its asset preparation scripts and a README with the full protocol.
+
+The tasks' own tests live with them (`tasks/<name>/tests/unit/`, and the coding-agent-harness grid's in
+`tasks/coding-agent-harness/grid/tests/`); the repository's `tests/` checks every task's contract against the spec:
+
+```bash
+python3 -m pytest tests examples/word-count/tests/unit tasks/cluster-serverless/tests/unit \
+  tasks/coding-agent-harness/tests/unit tasks/coding-agent-harness/grid/tests tasks/serve-glm53-flash/tests/unit
+```
+
+rl-swe-agent's unit tests (`tasks/rl-swe-agent/tests/unit`) are described in its README; some need torch. The
+framework's own tests are described in [breakwater/README.md](breakwater/README.md#tests).
 
 ## Acknowledgements
 

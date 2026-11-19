@@ -1,7 +1,7 @@
 version = "1.0"
 
-# Launched with breakwater/run.py, which runs authoring, the evaluation stage and the final verifier in three
-# separate containers; the task contract is breakwater.json. The held-out score comes from the trusted host
+# Launched with python3 -m breakwater run, which runs authoring, the evaluation stage and the final verifier in three
+# separate stages; the task contract is the [breakwater] tables below. The held-out score comes from the trusted host
 # evaluator in evaluation/, run on the sealed checkpoint after the integrity review (evaluation/README.md).
 
 [metadata]
@@ -29,3 +29,66 @@ build_timeout_sec = 7200.0
 gpus = 4
 gpu_types = ["GB300"]
 storage_mb = 1000000
+
+# Breakwater: see breakwater/SPEC.md. [agent] timeout_sec is the authoring budget; [environment] gpus,
+# gpu_types and workdir apply too.
+[breakwater]
+name = "rl-swe-agent"
+failure_reward = 0.0
+agent_deadline = "evaluate"
+review_profile = "indexed"
+
+[breakwater.judge]
+timeout_sec = 10800
+
+[breakwater.workspace]
+excludes = ["/README.md", "/evaluation", "out", "data", "artifacts", ".venv", ".deps"]
+
+[breakwater.evaluation]
+timeout_sec = 16200
+
+[breakwater.resources]
+shm_size = "64g"
+
+# The operator's Harbor sandbox worker on the launcher's host: the agent's commands reach it as sandbox-worker:11000
+# (--endpoint sandbox-worker=HOST:PORT if it listens elsewhere), once it answers its health check.
+[[breakwater.endpoints]]
+name = "sandbox-worker"
+port = 11000
+health = "/health"
+
+# The session servers the agent's commands run, which the episode sandboxes the worker starts call back as
+# host.docker.internal:PORT on the launcher's host.
+[breakwater.authoring]
+inbound_ports = "30000-30015"
+inbound_host = "host.docker.internal"
+
+[[breakwater.assets]]
+name = "base-model"
+source = "artifacts/GLM-4.7-Flash"
+target = "/app/artifacts/GLM-4.7-Flash"
+stages = ["agent"]
+
+[[breakwater.assets]]
+name = "evaluation-base-model"
+source = "artifacts/GLM-4.7-Flash"
+target = "/private/base-model"
+stages = ["evaluation", "verifier"]
+
+[[breakwater.assets]]
+name = "train-tasks"
+source = "data/train.jsonl"
+target = "/app/data/train.jsonl"
+stages = ["agent"]
+
+[[breakwater.assets]]
+name = "dev-tasks"
+source = "data/dev.jsonl"
+target = "/app/data/dev.jsonl"
+stages = ["agent"]
+
+[[breakwater.assets]]
+name = "data-manifest"
+source = "data/manifest.json"
+target = "/app/data/manifest.json"
+stages = ["agent"]

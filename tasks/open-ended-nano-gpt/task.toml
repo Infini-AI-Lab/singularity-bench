@@ -1,6 +1,6 @@
 version = "1.0"
 
-# Launch with breakwater/run.py; the Breakwater task contract is breakwater.json.
+# Launch with python3 -m breakwater run; the Breakwater task contract is the [breakwater] tables below.
 
 [metadata]
 author_name = "InfiniAILab"
@@ -21,3 +21,69 @@ build_timeout_sec = 1200.0
 gpus = 4
 gpu_types = ["GB300"]
 storage_mb = 120000
+
+# Breakwater: see breakwater/SPEC.md. [agent] timeout_sec is the authoring budget; [environment] gpus,
+# gpu_types and workdir apply too.
+[breakwater]
+name = "open-ended-nano-gpt"
+failure_reward = -1.0
+rule_violation_reward = -1.0
+agent_deadline = "evaluate"
+review_profile = "indexed"
+
+[breakwater.judge]
+timeout_sec = 10800
+
+[breakwater.workspace]
+source = "task"
+excludes = ["/README.md", "out", "private_validation", "lambada"]
+
+[breakwater.evaluation]
+timeout_sec = 21600
+runners = "runners"
+
+[breakwater.evaluation.worker_env]
+PATH = "/opt/venv/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin"
+VIRTUAL_ENV = "/opt/venv"
+HOME = "/tmp/worker"
+TMPDIR = "/tmp/worker"
+BREAKWATER_WORKDIR = "/app"
+LANG = "C.UTF-8"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+PYTHONPATH = "/opt/breakwater-drivers:/opt/megatron-lm"
+HF_HUB_OFFLINE = "1"
+TRANSFORMERS_OFFLINE = "1"
+TOKENIZERS_PARALLELISM = "false"
+TORCH_CUDA_ARCH_LIST = "10.0+PTX"
+
+[breakwater.scoring]
+recomputed = ["inputs/ppl.input", "raw/logprobs.parquet", "raw/generation.stdout"]
+
+[breakwater.resources]
+shm_size = "16g"
+memlock = -1
+
+[[breakwater.assets]]
+name = "train-tokens"
+source = "open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full/train.bin"
+target = "/app/nanoGPT/data/openwebtext_qwen3_full/train.bin"
+stages = ["agent"]
+
+[[breakwater.assets]]
+name = "train-meta"
+source = "open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full/meta.json"
+target = "/app/nanoGPT/data/openwebtext_qwen3_full/meta.json"
+stages = ["agent"]
+
+[[breakwater.assets]]
+name = "validation"
+source = "private_validation/openwebtext_qwen3_full"
+target = "/private/validation"
+stages = ["evaluation", "verifier"]
+
+[[breakwater.assets]]
+name = "lambada"
+source = "private_validation/lambada"
+target = "/private/lambada"
+stages = ["evaluation", "verifier"]

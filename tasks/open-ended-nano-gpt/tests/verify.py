@@ -1,4 +1,4 @@
-"""Trusted open-ended-nano-gpt scoring helpers, imported as ``verify`` by breakwater/nano_stages.py.
+"""Trusted open-ended-nano-gpt scoring helpers, imported as ``verify`` by nano_stages.py.
 
 The evaluation coordinator and the verifier use them to select the submitted checkpoint,
 hash-check the supplied generation files, check the pinned LAMBADA split and compute

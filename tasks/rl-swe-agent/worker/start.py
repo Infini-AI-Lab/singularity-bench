@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Start the supplied Harbor sandbox worker on the GB300 host, outside the agent container.
 
+    start.py --harbor HARBOR --tasks TASKS --trials NEW_DIR [--port 11000] [--engine docker|podman] [--host ADDRESS]
+
+With --engine podman (a host without Docker, such as an Apptainer cluster) every trial runs in a rootless podman
+sandbox (worker/podman: source podman-store.sh and load the task images first), and the worker listens on the host's
+loopback, where Breakwater's Apptainer backend relays the agent's commands to it.
+
 Runs Harbor's agent server from the pinned checkout (sources.lock.json) after checking that both patches in
 worker/patches are applied, and serves only the staged training tasks with native ARM64 images
 (arm64_tasks.py stage). Settings come from mini_slime.config PROFILES['gb300']: 65,536-token context,
@@ -34,11 +40,12 @@ def resolve_docker_host_alias():
         return resolve('127.0.0.1' if host in ('host.docker.internal',b'host.docker.internal') else host,*args,**kwargs)
     socket.getaddrinfo=getaddrinfo
 
-def validate_arm64_tasks(tasks):
-    """GB300 workers accept only prepared native task images on an ARM64 daemon."""
-    info = json.loads(subprocess.check_output(['docker','info','--format','{{json .}}'],text=True))
-    if info.get('OSType') != 'linux' or info.get('Architecture') not in ('aarch64','arm64'):
-        raise ValueError('GB300 task sandboxes require a native Linux ARM64 Docker daemon')
+def validate_arm64_tasks(tasks,engine='docker'):
+    """GB300 workers accept only prepared native task images on an ARM64 container engine."""
+    info = json.loads(subprocess.check_output([engine,'info','--format','{{json .}}'],text=True))
+    host = info.get('host') or {}  # podman reports host.os and host.arch; Docker OSType and Architecture
+    if (info.get('OSType') or host.get('os')) != 'linux' or (info.get('Architecture') or host.get('arch')) not in ('aarch64','arm64'):
+        raise ValueError(f'GB300 task sandboxes require a native Linux ARM64 {engine}')
     images = set()
     configs = sorted(tasks.glob('*/task.toml'))
     if not configs:
@@ -49,7 +56,7 @@ def validate_arm64_tasks(tasks):
             raise ValueError(f'{path}: use the pinned ARM64 task tree from arm64_tasks.py stage')
         images.add(image)
     for image in sorted(images):
-        platform = subprocess.check_output(['docker','image','inspect',image,
+        platform = subprocess.check_output([engine,'image','inspect',image,
             '--format','{{.Os}}/{{.Architecture}}'],text=True).strip()
         if platform != 'linux/arm64':
             raise ValueError(f'{image}: expected linux/arm64, found {platform}')
@@ -59,16 +66,27 @@ def main():
     p.add_argument('--harbor',type=Path,required=True);p.add_argument('--tasks',type=Path,required=True)
     p.add_argument('--trials',type=Path,required=True)
     p.add_argument('--port',type=int,default=11000)
+    p.add_argument('--engine',choices=('docker','podman'),default='docker',
+        help='the task sandboxes\' container engine; podman runs rootless (source worker/podman/podman-store.sh first)')
+    p.add_argument('--host',help='listen address; default 0.0.0.0 with Docker (the agent container reaches the host over '
+        'a bridge), 127.0.0.1 with podman (the Apptainer backend relays to it)')
     a=p.parse_args();harbor=a.harbor.resolve()
+    host=a.host or ('127.0.0.1' if a.engine=='podman' else '0.0.0.0')
     a.trials=a.trials.resolve();a.tasks=a.tasks.resolve()
     commit=subprocess.check_output(['git','-C',str(harbor),'rev-parse','HEAD'],text=True).strip()
     if commit!=LOCK['harbor']['commit']:raise RuntimeError('Wrong Harbor commit')
     for patch in PATCHES:
         if not patch.is_file() or not patch.stat().st_size:raise ValueError(f'Missing patch: {patch}')
         subprocess.run(['git','-C',str(harbor),'apply','--reverse','--check',str(patch)],check=True)
-    subprocess.run(['docker','info'],check=True,stdout=subprocess.DEVNULL)
+    subprocess.run([a.engine,'info'],check=True,stdout=subprocess.DEVNULL)
     if not a.tasks.is_dir():raise ValueError('Missing worker task directory')
-    validate_arm64_tasks(a.tasks)
+    validate_arm64_tasks(a.tasks,a.engine)
+    if a.engine=='podman':
+        # Harbor's docker environment runs as rootless podman, here and in every trial subprocess (worker/podman).
+        sys.path.insert(0,str(ROOT/'worker/podman'))
+        import harbor_podman_hooks
+        os.environ.update(harbor_podman_hooks.environment(dict(os.environ)))
+        harbor_podman_hooks.install()
     sys.path.insert(0,str(ROOT))
     from mini_slime.config import PROFILES
     c=PROFILES['gb300']
@@ -80,13 +98,14 @@ def main():
     diff=subprocess.check_output(['git','-C',str(harbor),'diff','HEAD'])
     (a.trials/'worker-provenance.json').write_text(json.dumps({'commit':commit,'profile':'gb300',
         'diff_sha256':hashlib.sha256(diff).hexdigest(),'patch_sha256':{patch.name:hashlib.sha256(patch.read_bytes()).hexdigest() for patch in PATCHES},
-        'global_prune':'disabled','tasks':str(a.tasks.resolve()),'host_docker_internal':'127.0.0.1 in the worker process'},indent=2)+'\n')
+        'global_prune':'disabled','tasks':str(a.tasks.resolve()),'host_docker_internal':'127.0.0.1 in the worker process',
+        'engine':a.engine,'listen':f'{host}:{a.port}'},indent=2)+'\n')
     (a.trials/'source.patch').write_bytes(diff)
     os.chdir(harbor);sys.path.insert(0,str(harbor))
     resolve_docker_host_alias()
     import miles_agent_server
     miles_agent_server._docker_prune_loop=idle_prune_loop
-    sys.argv=[str(harbor/'miles_agent_server.py'),'--host','0.0.0.0','--port',str(a.port),
+    sys.argv=[str(harbor/'miles_agent_server.py'),'--host',host,'--port',str(a.port),
         '--dashboard-port','0','--dashboard-log-path',str(a.trials.resolve()/'requests.jsonl'),
         '--max-concurrent',str(c.concurrency),'--agent-timeout',str(c.episode_seconds),
         '--trials-dir',str(a.trials.resolve())]

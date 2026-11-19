@@ -110,6 +110,25 @@ prompts, canaries, the grader's copies of the simulator and corpus) ships in `te
 
 ## Running under Breakwater
 
+### On Apptainer
+
+Apptainer is the default backend. Build the runtime as a SIF and run the task
+([breakwater/apptainer/README.md](../../breakwater/apptainer/README.md)). The checkpoint is the same asset, and the submitted server's port 8000 is relayed from the submission
+sandbox to the coordinator:
+
+```bash
+TASK_SIF=serve-glm53-flash.sif bash tasks/serve-glm53-flash/environment/build-apptainer.sh
+# The checkpoint, then a check of the SIF in place of the Docker image build:
+PREPARE_RUNTIME=apptainer TASK_SIF=serve-glm53-flash.sif bash tasks/serve-glm53-flash/prepare.sh
+python3 -m breakwater install-cli --dest CLI_DIR        # once: the pinned agent CLI (--agent codex for Codex)
+python3 -m breakwater install-judge --dest JUDGE_DIR    # once: the pinned judge runner
+python3 -m breakwater run --task tasks/serve-glm53-flash --image serve-glm53-flash.sif \
+  --cli-dir CLI_DIR --judge-dir JUDGE_DIR --run-dir RUN_DIR --asset-root ASSET_ROOT \
+  --author-model MODEL --author-upstream https://PROVIDER --author-key-env AUTHOR_API_KEY --scratch LOCAL_DISK_DIR
+```
+
+### On Docker
+
 The Docker host also needs a generated NVIDIA CDI specification for the GPUs
 ([breakwater/README.md](../../breakwater/README.md) lists the host requirements). Build the Breakwater images on
 top of the runtime image:
@@ -127,19 +146,17 @@ docker build -t breakwater-observer:local breakwater/collector
 docker build -f breakwater/Dockerfile.gateway -t breakwater-author-gateway:local breakwater
 ```
 
-Copy [bindings.example.json](bindings.example.json) and point its `source` at the checkpoint, relative to
-`--asset-root`. With `MODEL_HOST_DIR=ASSET_ROOT/serving` as above, the example's `serving/GLM-5.3-Flash` is
-already correct. The checkpoint is mounted read-only at `/models/GLM-5.3-Flash` in the agent and grading
-containers.
+The task declares the checkpoint as an asset at `serving/GLM-5.3-Flash` under `--asset-root` (`task.toml`,
+`[[breakwater.assets]]`); with `MODEL_HOST_DIR=ASSET_ROOT/serving` as above it is already in place. The checkpoint is
+mounted read-only at `/models/GLM-5.3-Flash` in the agent and grading containers.
 
 ```bash
-cp tasks/serve-glm53-flash/bindings.example.json bindings.json
 export FIREWORKS_API_KEY=...      # the integrity judge
 export AUTHOR_API_KEY=...         # the author model's provider
-python3 breakwater/run.py --task tasks/serve-glm53-flash \
+python3 -m breakwater run --backend docker --task tasks/serve-glm53-flash \
   --agent-image serve-glm53-flash-author:claude-code --verifier-image serve-glm53-flash-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
-  --run-dir RUN_DIR --asset-root ASSET_ROOT --bindings bindings.json \
+  --run-dir RUN_DIR --asset-root ASSET_ROOT \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER --author-key-env AUTHOR_API_KEY \
   --gpus device=0,1,2,3
 ```
@@ -147,9 +164,12 @@ python3 breakwater/run.py --task tasks/serve-glm53-flash \
 `--gpus` selects the four GB300 GPUs (default `device=0,1,2,3`). `RUN_DIR` must be new and outside the task
 folder and the asset root. Reports land in `RUN_DIR/reports/` (`mechanical-check.json`, `judge.json`,
 `reward.json`). [breakwater/README.md](../../breakwater/README.md) covers the generic parts. The budgets in
-[breakwater.json](breakwater.json) are 43,200 s for authoring, 21,600 s for grading (worst case about 7,000 s: up
+[task.toml](task.toml) are 43,200 s for authoring, 21,600 s for grading (worst case about 7,000 s: up
 to 1,800 s to become ready, the 900 s window and 300 s drain, up to 3,660 s for the 560-request accuracy pass,
 and shutdown) and 10,800 s for the judge.
+
+
+### What each stage does
 
 **Agent stage.** The image's own `/app` is the workspace. The agent runs as `author` (UID 1100) and its commands
 as `worker` (UID 1101), with the four GPUs. Commands can reach only local servers in the container, and the
@@ -157,13 +177,13 @@ coding CLI reaches its model only through the author gateway. When the budget en
 sealed and graded, even if the CLI is still running.
 
 **Intermediate stage (grading).** A fresh container from the same image, without network, runs
-[breakwater/intermediate.py](../../breakwater/intermediate.py) (kind `serving`). The sealed `/app` is mounted
+the task's `evaluate` ([tests/breakwater_task.py](tests/breakwater_task.py)) as the trusted coordinator. The sealed `/app` is mounted
 at `/submission`, and the coordinator installs a fresh, writable, worker-owned copy at `/app`; recorded
 symbolic links are recreated only if they resolve inside `/app` or `/models/GLM-5.3-Flash`, and any other link
 makes the submission invalid. The task's `tests/` folder is mounted at `/private/tests`, which only root can
 read, so the submitted server never sees the held-out prompts. The coordinator then calls `run_grader` in
 [tests/serving_eval.py](tests/serving_eval.py) with the hidden traffic seed, which is set in
-`breakwater/intermediate.py` and never placed in the image. The grader clears the GPUs and port 8000, starts
+[tests/breakwater_task.py](tests/breakwater_task.py) and never placed in the image. The grader clears the GPUs and port 8000, starts
 `bash /app/serve.sh` as the worker, and waits up to 1,800 s for it to answer. It then runs one traffic pass of
 [tests/simulator.py](tests/simulator.py) on the hidden seed, followed by the accuracy pass over
 `tests/hidden_eval.json` and `tests/canaries.json`, and stops the server. Its raw outputs are the complete
@@ -181,12 +201,12 @@ integrity judge (Codex with DeepSeek V4.1 Flash, indexed review) on `breakwater/
 
 | Path | Contents |
 |---|---|
-| `breakwater.json` | The Breakwater contract: kind `serving`, image-sourced `/app`, the `/submission` mount, budgets, four GB300 GPUs, resources, indexed review. |
-| `bindings.example.json` | The checkpoint binding: `serving/GLM-5.3-Flash` under the asset root, mounted at `/models/GLM-5.3-Flash` for the agent and grading stages. |
-| `task.toml` | Harbor metadata, timeouts, image name and resources. |
+| `task.toml` | Harbor metadata and the Breakwater contract: image-sourced `/app`, the `/submission` mount, budgets, four GB300 GPUs, resources, indexed review, and the checkpoint asset (`serving/GLM-5.3-Flash` under the asset root, mounted at `/models/GLM-5.3-Flash` for the agent and grading stages). |
+| `tests/breakwater_task.py` | The task's trusted code: the grading run (`evaluate`) and the recomputed income (`score`). |
 | `instruction.md` | The agent's prompt (`environment/instruction.md` is its copy in `/app`). |
 | `prepare.sh`, `prepare_model.py`, `model_manifest.json` | Checkpoint download and verification, and the runtime image build. |
 | `environment/Dockerfile`, `environment/prefetch_fp8_kernel.py` | The ARM64 runtime image with its frozen CUDA 13.0 / torch / transformers stack and the baked-in FP8 kernel. |
+| `environment/apptainer.def`, `environment/build-apptainer.sh` | The same runtime as an Apptainer image. |
 | `environment/agent-policy.json` | The agent's workspace policy, read by the author image. |
 | `environment/` (other files) | The agent's starting `/app`, listed above. |
 | `tests/serving_eval.py` | The grader: server lifecycle, traffic pass, accuracy pass and raw outputs. |

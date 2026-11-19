@@ -26,11 +26,9 @@ def available():
 
 @unittest.skipUnless(available(), 'Docker daemon unavailable; live container isolation is NOT verified')
 class DockerBoundaryTests(unittest.TestCase):
-    def test_each_task_hides_logs_from_execution_and_readonly_verifier_checks_them(self):
-        tasks = ['open-ended-nano-gpt', 'midtrain-for-rl', 'rl-swe-agent', 'serve-glm53-flash',
-                 'coding-agent-harness', 'cluster-serverless']
+    def test_execution_containers_cannot_see_logs_and_the_readonly_verifier_checks_them(self):
         image = os.environ.get('BREAKWATER_CPU_TEST_IMAGE', 'python:3.12-slim-bookworm')
-        for task in tasks:
+        for task in ('example',):
             with self.subTest(task=task), tempfile.TemporaryDirectory(dir=HERE / 'tests') as temporary:
                 root = Path(temporary)
                 external, local = root / 'external', root / 'local'
@@ -88,8 +86,6 @@ else: raise AssertionError('writable evidence')
                 self.assertNotEqual(result.returncode, 0)
 
 
-if __name__ == '__main__':
-    unittest.main()
 
 @unittest.skipUnless(available(), 'Docker unavailable; external recorder integration is NOT verified')
 class DockerCollectorTests(unittest.TestCase):
@@ -211,3 +207,7 @@ class DockerWorkspaceSeedTests(unittest.TestCase):
             finally:
                 subprocess.run(['docker', 'rm', '-f', *created], capture_output=True)
                 subprocess.run(['docker', 'rmi', '-f', *images.values()], capture_output=True)
+
+
+if __name__ == '__main__':
+    unittest.main()

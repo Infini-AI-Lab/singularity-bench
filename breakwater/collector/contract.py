@@ -8,7 +8,7 @@ CONTRACT = {
         'Externally observed worker process/file syscalls and I/O metadata; bulk worker write buffers are intentionally excluded.',
         'Configured hourly source inventories and a final source inventory, with deduplicated source contents.',
         'Protected supervisor streams before native CLI truncation, plus native CLI tool-event output.',
-        'Protected model gateway request/response journals, and fleet journals where applicable.',
+        'Protected model gateway request/response journals, and the task\'s own evidence where applicable.',
         'Required submitted artifacts, private validation outputs and independent scoring results.',
     ],
     'visibility_limits': [

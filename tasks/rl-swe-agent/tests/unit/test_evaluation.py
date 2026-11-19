@@ -205,6 +205,70 @@ class SuiteTests(unittest.TestCase):
                 self.assertTrue(all(call.kwargs['env']['DOCKER_HOST'] == 'ssh://sandbox' for call in run.call_args_list))
 
 
+class PodmanAndApptainerTests(unittest.TestCase):
+    """The evaluator on a host without Docker: rootless podman sandboxes and the Apptainer runtime."""
+
+    def test_podman_image_ids_are_pinned_like_docker_ones(self):
+        self.assertEqual(ev.image_id('a' * 64 + '\n'), IMAGE)  # podman leaves out the prefix
+        self.assertEqual(ev.image_id(IMAGE), IMAGE)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            task = root / 'source' / 'task'
+            task.mkdir(parents=True)
+            (task / 'task.toml').write_text('[environment]\ndocker_image = "upstream:latest"\n')
+            (task / 'instruction.md').write_text('Fix the task.')
+            commands = []
+            def run(command, **kwargs):
+                commands.append(command)
+                if command[:3] == ['podman', 'image', 'inspect']:
+                    return SimpleNamespace(stdout='linux/arm64' if 'Os' in command[-1] else 'a' * 64, returncode=0)
+                return SimpleNamespace(stdout='abc\n' if 'rev-parse' in command else '', returncode=0)
+            (root / 'out').mkdir()
+            with patch.object(ev, 'SUITES', {'pulled': {'commit': 'abc', 'task_count': 1}}), \
+                 patch.object(ev.subprocess, 'run', side_effect=run):
+                ev.prepare_suites({'pulled': root / 'source'}, root / 'out', ev.Deadline(3600), {}, image_workers=1,
+                                  task_platform='linux/arm64', engine='podman')
+            self.assertFalse(any(command[0] == 'docker' for command in commands))
+            self.assertIn(f'docker_image = "{IMAGE}"', (root / 'out' / 'tasks' / 'pulled' / 'task' / 'task.toml').read_text())
+
+    def test_podman_cleanup_removes_only_this_runs_sandboxes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            job = Path(temp)
+            (job / 'task__abc').mkdir()
+            (job / 'task__abc/config.json').write_text('{}')
+            names = 'harbor-task__abc__env\nharbor-unrelated__env\nother\n'
+            with patch.object(ev.subprocess, 'run', return_value=SimpleNamespace(stdout=names, returncode=0)) as run:
+                ev.cleanup_sandboxes([job], ev.Deadline(3600), {}, engine='podman')
+            commands = [call.args[0] for call in run.call_args_list]
+            self.assertEqual(commands, [['podman', 'ps', '-a', '--format', '{{.Names}}'],
+                                        ['podman', 'rm', '--force', '--ignore', 'harbor-task__abc__env']])
+
+    def test_apptainer_audit_has_no_network_and_the_server_gets_the_gpus_and_loopback(self):
+        a = SimpleNamespace(runtime='apptainer', eval_sif=Path('/images/eval.sif'), base_model=Path('/models/base'),
+                            output=Path('/runs/eval'), gpus='0,1,2,3', port=32200)
+        with patch.object(runner.shutil, 'which', return_value='/usr/bin/apptainer'):
+            audit = runner.audit_command(a, 'sha256:x', Path('/runs/candidate'), 'audit', Path('/scratch/a'))
+            serve = runner.serve_command(a, 'sha256:x', Path('/runs/candidate'), 'serve', '127.0.0.1', Path('/scratch/t'))
+        self.assertEqual(audit[:2], ['/usr/bin/apptainer', 'exec'])
+        self.assertIn('--containall', audit)
+        self.assertEqual(audit[audit.index('--network') + 1], 'none')
+        self.assertIn('/runs/candidate:/candidate:ro', audit)
+        self.assertEqual(audit[audit.index('/images/eval.sif') + 1:audit.index('/images/eval.sif') + 3],
+                         ['python', '-m'])
+        self.assertIn('--nv', serve)
+        self.assertNotIn('--network', serve)  # the policy server is on the host's network
+        self.assertIn('CUDA_VISIBLE_DEVICES=0,1,2,3', serve)
+        self.assertEqual(serve[serve.index('--workdir') + 1], '/scratch/t')  # /tmp and an empty home on disk
+        self.assertEqual(audit[audit.index('--workdir') + 1], '/scratch/a')
+        self.assertFalse(any('HOME=' in item for item in audit + serve))  # Apptainer ignores --env HOME
+        self.assertNotIn('--no-home', serve)
+        self.assertEqual(serve[serve.index('--host') + 1], '127.0.0.1')
+        docker = runner.serve_command(SimpleNamespace(**{**a.__dict__, 'runtime': 'docker'}),
+                                      'sha256:x', Path('/runs/candidate'), 'serve', '0.0.0.0')
+        self.assertEqual(docker[:2], ['docker', 'run'])
+        self.assertEqual(docker[docker.index('--host') + 1], '0.0.0.0')
+
+
 class RunnerTests(unittest.TestCase):
     def test_two_jobs_share_one_server_and_finish_independently(self):
         self.exercise_runner(False)

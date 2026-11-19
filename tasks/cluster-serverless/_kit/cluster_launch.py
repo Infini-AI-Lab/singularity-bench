@@ -40,14 +40,35 @@ DEFAULT_LAUNCH = "ssh -o BatchMode=yes {node} {cmd}"
 CONTAINER_NAME = "cluster-fleet"
 
 
-def container_cmd(a, node: str) -> str:
-    """`docker run` for one node's slice of the fleet.
+def fleet_home(a) -> str:
+    """The fleet's writable home on each node: vLLM, Triton and torch write caches under HOME, and the SIF is read-only
+    (Docker gives each container a writable /root of its own). A new directory for each run, at the same path on
+    every node, in node-local CLUSTER_FLEET_HOME (default /tmp); `down` removes it."""
+    return os.path.join(os.environ.get("CLUSTER_FLEET_HOME", "/tmp"), f"cluster-fleet-{a.run_id}")
 
-    --network host, not a published port range. Two reasons, and both are requirements rather than
-    conveniences: a worker must be reachable at the NODE's address for the control plane to route to it,
-    and a vLLM engine sharded ACROSS nodes opens its own NCCL and distributed-init ports, which are
-    negotiated at run time and cannot be published ahead of time.
+
+def apptainer_cmd(a, node: str) -> str:
+    """`apptainer exec` of the fleet SIF for one node's slice of the fleet (nodes without Docker).
+
+    No --containall: the fleet shares the node's network (workers at the node's address, NCCL ports negotiated at
+    run time), its PID namespace (nvidia-smi reports host PIDs) and its IPC and /dev/shm, as --network/--pid/--ipc
+    host do under Docker. Its home is fleet_home(), not the user's. The host-RAM budget is the remote launcher's to
+    enforce (srun --mem), since an unprivileged user cannot create the cgroup Docker does. Every fleet process carries
+    CLUSTER_RUN_ID, by which `down` stops them.
     """
+    env = fleet_env(a, node)
+    flags = " ".join(f"--env {shlex.quote(f'{k}={v}')}" for k, v in env.items())
+    nv = "--nv " if a.worker_script == "manager.py" else ""
+    binary = os.environ.get("CLUSTER_APPTAINER", "apptainer")
+    home = shlex.quote(fleet_home(a))
+    fleet = (f"{shlex.quote(binary)} exec {nv}--cleanenv --home {home}:/fleet/home --pwd /fleet {flags} "
+             f"--bind {shlex.quote(a.run_dir)}:/fleet/run --bind {shlex.quote(a.weights)}:/weights:ro "
+             f"{shlex.quote(a.image)} /bin/bash /fleet/entrypoint.sh")
+    return "/bin/bash -c " + shlex.quote(f"mkdir -p -m 700 {home} && exec {fleet}")
+
+
+def fleet_env(a, node: str) -> dict:
+    """The environment of one node's slice of the fleet, under either runtime."""
     env = {
         "CLUSTER_NODE_NAME": node,
         "CLUSTER_RUN_ID": a.run_id,
@@ -73,6 +94,19 @@ def container_cmd(a, node: str) -> str:
     env["CLUSTER_HOST_RAM_GIB"] = str(host_ram_gib)
     if a.time_scale != 1.0:
         env["CLUSTER_TIME_SCALE"] = str(a.time_scale)
+    return env
+
+
+def container_cmd(a, node: str) -> str:
+    """`docker run` for one node's slice of the fleet.
+
+    --network host, not a published port range. Two reasons, and both are requirements rather than
+    conveniences: a worker must be reachable at the NODE's address for the control plane to route to it,
+    and a vLLM engine sharded ACROSS nodes opens its own NCCL and distributed-init ports, which are
+    negotiated at run time and cannot be published ahead of time.
+    """
+    env = fleet_env(a, node)
+    host_ram_gib = float(env["CLUSTER_HOST_RAM_GIB"])
     flags = " ".join(f"-e {k}={shlex.quote(v)}" for k, v in env.items())
     gpus = "--gpus all" if a.worker_script == "manager.py" else ""
     # --ipc=host and a raised shm: vLLM's workers talk over shared memory, and the default 64 MB is not
@@ -106,6 +140,13 @@ def container_cmd(a, node: str) -> str:
 
 def remote(node: str, cmd: str, background: bool = True) -> subprocess.CompletedProcess:
     tmpl = os.environ.get("CLUSTER_REMOTE_LAUNCH", DEFAULT_LAUNCH)
+    if background and os.environ.get("CLUSTER_REMOTE_FOREGROUND") == "1":
+        # A launcher whose remote processes end with it (srun: a step's processes die when it ends) runs the
+        # command in the foreground on the node, and the launcher itself in the background here.
+        full = tmpl.replace("{node}", shlex.quote(node)).replace("{cmd}", shlex.quote(f"exec env {cmd}"))
+        with open(f"/tmp/cluster-launch-{node}.log", "wb") as log:
+            subprocess.Popen(full, shell=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+        return subprocess.CompletedProcess(full, 0, "", "")
     # `env` in front, not bare VAR=... assignments: setsid execs its argument directly and would try to
     # run "CLUSTER_NODE_NAME=node001" as a program.
     inner = (f"nohup setsid env {cmd} > /tmp/cluster-worker.log 2>&1 < /dev/null &"
@@ -155,7 +196,9 @@ def up(a) -> int:
                            a.host_ram_gib, nodes, a.gpus_per_node,
                            port_stride=a.port_stride, controller_port=a.controller_port)
     a.host_ram_gib = fleet["host_ram_gib"]
-    if a.resolve and not a.local_hosts:
+    # Apptainer: names stay in `host`. Breakwater's sandboxes resolve each node name to a relay on their own loopback
+    # (they have no network to reach an address by), and the fleet resolves them as the site does.
+    if a.resolve and not a.local_hosts and a.runtime != "apptainer":
         # ADDRESSES in `host`, names in `node`. The agent's container is on a docker bridge with the
         # daemon's resolver, which knows nothing about site hostnames; an unresolvable name there is a
         # control plane that cannot reach a fleet that is running perfectly well. `node` keeps the name
@@ -181,14 +224,24 @@ def up(a) -> int:
         fleet["host"] = "127.0.0.1"
     a.run_id = secrets.token_hex(16)
     fleet["run_id"] = a.run_id
-    fleet["launch"] = {"mode": "container" if a.image else "process",
+    fleet["launch"] = {"mode": ("apptainer" if a.runtime == "apptainer" else "container") if a.image else "process",
                        "kit_dir": a.kit_dir or str(Path(__file__).resolve().parent), "python": a.python}
+    if fleet["launch"]["mode"] == "apptainer":
+        fleet["launch"]["fleet_home"] = fleet_home(a)
     if Path(a.out).exists():
         raise RuntimeError("fleet output already exists; use a fresh run directory")
     if any(healthy(n.get("host") or fleet["host"], n["port"]) for n in fleet["nodes"]) or healthy(
             fleet["controller"]["host"], fleet["controller"]["port"]):
         raise RuntimeError("fleet endpoints are already occupied; no processes were stopped")
-    if a.image:
+    if a.image and a.runtime == "apptainer":
+        # One SIF at the same path on every node (a shared filesystem), identified by its digest.
+        import hashlib
+        digest = hashlib.sha256()
+        with open(a.image, "rb") as stream:
+            for block in iter(lambda: stream.read(1 << 24), b""):
+                digest.update(block)
+        fleet["launch"]["images"] = {node: "sha256:" + digest.hexdigest() for node in nodes}
+    elif a.image:
         a._image_ids = {}
         for node in nodes:
             result = remote(node, f"docker image inspect --format '{{{{.Id}}}}' {shlex.quote(a.image)}", background=False)
@@ -213,7 +266,10 @@ def up(a) -> int:
     kit = a.kit_dir or os.path.dirname(os.path.abspath(__file__))
     failed = []
     for node in nodes:
-        if a.image:
+        if a.image and a.runtime == "apptainer":
+            a._first_node = nodes[0]
+            cmd, bg = apptainer_cmd(a, node), True
+        elif a.image:
             a._first_node = nodes[0]
             cmd, bg = container_cmd(a, node), False
         else:
@@ -299,9 +355,13 @@ if info['Config'].get('Labels', {}).get('cluster.run') != identity:
 subprocess.run(['docker', 'rm', '-f', info['Id']], check=True)
 """
             cmd = f"python3 -c {shlex.quote(script)} {shlex.quote(name)} {run_id}"
-        elif launch["mode"] == "process":
+        elif launch["mode"] in ("process", "apptainer"):
             helper = Path(launch["kit_dir"]) / "owned_processes.py"
             cmd = f"{shlex.quote(launch['python'])} {shlex.quote(str(helper))} {run_id}"
+            if launch.get("fleet_home"):
+                if Path(launch["fleet_home"]).name != f"cluster-fleet-{run_id}":
+                    raise ValueError("the fleet home is not this run's; refusing to remove it")
+                cmd += f" && rm -rf -- {shlex.quote(launch['fleet_home'])}"
         else:
             raise ValueError("unknown fleet launch mode")
         result = remote(node, cmd, background=False)
@@ -350,6 +410,9 @@ def main() -> int:
     u.add_argument("--run-dir", default="", help="directory holding fleet.json + catalogue.json, "
                                                  "readable at the SAME path on every node")
     u.add_argument("--shm-size", default="32g")
+    u.add_argument("--runtime", choices=("docker", "apptainer"), default="docker",
+                   help="how --image runs on each node: a Docker image, or an Apptainer SIF at the same path on "
+                        "every node (with node names, not addresses, in the manifest)")
     u.add_argument("--time-scale", type=float, default=1.0,
                    help="EMULATOR ONLY: divide every simulated cost by this. For testing the plumbing; "
                         "the real fleet ignores it, so a number from a scaled run is not a score.")

@@ -1,0 +1,10 @@
+{
+  "_comment": "Input for tasks/coding-agent-harness/grid/grid.py run --backend apptainer --images (coding-agent-harness). Each SIF is a downstream task's image (its environment/build-apptainer.sh) with the cell overlay (images/apptainer.def); see grid/README.md.",
+  "cells": {
+    "flash-attn-backward": {"sif": "/path/to/flash-attn-backward-cell.sif"},
+    "nvfp4-gemm": {"sif": "/path/to/nvfp4-gemm-cell.sif"},
+    "mla-decode": {"sif": "/path/to/mla-decode-cell.sif"},
+    "pr-vllm-35022": {"sif": "/path/to/pr-vllm-35022-cell.sif"},
+    "pr-vllm-33698": {"sif": "/path/to/pr-vllm-33698-cell.sif"}
+  }
+}

@@ -6,12 +6,12 @@ an execution container. Run on the Docker host; never from an agent workspace.
 
 Usage: ``python3 breakwater/run.py --task tasks/<name> ...`` (see breakwater/README.md).
 
-The task contract lives in ``tasks/<name>/breakwater.json``. ``DEFAULTS`` gives every optional key
-(four GB300 GPUs, task-tree workspace, no development gateway, no fleet);
-coding-agent-harness and cluster-serverless declare one GPU / zero GPUs, an image-seeded
-workspace, the budgeted development gateway, and the remote inference fleet.
+The task contract lives in the ``[breakwater]`` tables of ``tasks/<name>/task.toml`` (breakwater/SPEC.md, read by
+spec.py). ``DEFAULTS`` gives every optional key; a task declares what it needs beyond them (its GPUs, its workspace
+source, model access, endpoints, host hooks).
 """
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -25,8 +25,13 @@ import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import (CREDENTIAL_ENV, RulesViolation, atomic_json, digest, inspect_boundary, inventory, overlaps,
-                      read_json, require, seal)
+import host_hooks
+import plan as plan_tools
+import spec
+from spec import (DEFAULTS, EVALUATION_HOSTS, HOME_MOUNT, RESERVED_ENV, RESOURCE_FIELDS, SEALED_PIPELINE,
+                  check_resources, cpu_list, relative_paths)
+from contract import (CREDENTIAL_ENV, FRAMEWORK_REVISION, RulesViolation, atomic_json, digest, inspect_boundary,
+                      inventory, overlaps, read_json, require, seal, tests_digest, write_canary)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -35,155 +40,10 @@ TASK = None
 # The authoring worker's HOME (author/task_config.py, worker_environment).
 WORKER_HOME = '/home/worker'
 # Where the sealed worker home is mounted for evaluation and review.
-HOME_MOUNT = '/submission-home'
 
-DEFAULTS = {
-    'gpus': 4,
-    'gpu_name_patterns': ['GB300', 'B300'],
-    'gpu_type': 'GB300',
-    'workspace_source': 'task',
-    'workspace_excludes': [],
-    'submission_mount': None,
-    'agent_extra_networks': [],
-    'intermediate_network': 'none',
-    'intermediate_cap_add': [],
-    'intermediate_env': [],
-    'intermediate_add_hosts': [],
-    'resources': {'cpus': None, 'memory_mb': None, 'nofile': None, 'shm_size': '16g', 'memlock': None,
-                  'stack': None, 'pids': None, 'cpuset': None},
-    'agent_resources': {},
-    'shadow_policy': None,
-    'protected_workspace_paths': [],
-    'snapshot_excludes': [],
-    'snapshot_worker_home': False,
-    'dataset_manifest': None,
-    'dataset_roots': [],
-    'sandbox_worker': None,
-    'review_profile': 'exhaustive',
-    'review_metadata_paths': [],
-    'agent_deadline': 'fail',
-    'rule_violation_reward': 0.0,
-    'development_gateway': None,
-    'cluster': None,
-}
-RESOURCE_FIELDS = ('cpus', 'memory_mb', 'nofile', 'shm_size', 'memlock', 'stack', 'pids', 'cpuset')
-# Launch-contract keys sealed into the authority; verifier.py compares them with its own copy of the contract.
-SEALED_PIPELINE = ('task', 'kind', 'gpus', 'review_profile', 'workdir', 'agent_deadline', 'rule_violation_reward',
-                   'snapshot_excludes', 'snapshot_worker_home', 'review_metadata_paths')
-# Variables the controller sets itself; with credentials and loader/interpreter variables,
-# they are never forwarded from the host to the evaluation stage.
-RESERVED_ENV = ('BREAKWATER_STAGE', 'PATH', 'HOME', 'PYTHONDONTWRITEBYTECODE')
-EVALUATION_HOSTS = ('host.docker.internal:host-gateway',)
-
-
-def relative_paths(values, label, *, anchored=False):
-    """Workspace-relative paths without empty, '.' or '..' components; a leading '/' only if anchored."""
-    require(isinstance(values, list), 'Invalid ' + label)
-    for value in values:
-        require(isinstance(value, str) and value and '\0' not in value, 'Invalid ' + label)
-        body = value[1:] if anchored and value.startswith('/') else value
-        require(all(part not in ('', '.', '..') for part in body.split('/')), 'Invalid ' + label)
-    return values
-
-
-def cpu_list(cpuset):
-    cpus = set()
-    for item in cpuset.split(','):
-        first, _, last = item.partition('-')
-        require(int(first) <= int(last or first) < 65536, 'Invalid cpuset range')
-        cpus.update(range(int(first), int(last or first) + 1))
-    return sorted(cpus)
-
-
-def check_resources(values, label):
-    require(isinstance(values, dict) and set(values) <= set(RESOURCE_FIELDS), 'Unknown ' + label + ' field')
-    for key, value in values.items():
-        if value is None:
-            continue
-        if key == 'cpus':
-            valid = type(value) in (int, float) and math.isfinite(value) and value > 0
-        elif key == 'shm_size':
-            valid = isinstance(value, str) and re.fullmatch(r'[1-9][0-9]*[bkmgBKMG]?', value) is not None
-        elif key == 'cpuset':
-            valid = (isinstance(value, str) and re.fullmatch(r'[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*', value) is not None
-                     and bool(cpu_list(value)))
-        elif key in ('memlock', 'stack'):
-            valid = type(value) is int and (value == -1 or value > 0)
-        else:
-            valid = type(value) is int and value > 0
-        require(valid, f'Invalid {label} value: {key}')
-    if values.get('cpuset') and values.get('cpus'):
-        require(len(cpu_list(values['cpuset'])) >= values['cpus'], 'The cpuset has fewer CPUs than the CPU quota')
-    return values
-
-
-def load_config(path=None):
-    config = read_json(path or TASK / 'breakwater.json')
-    require(isinstance(config.get('resources', {}), dict) and isinstance(config.get('agent_resources', {}), dict),
-            'Resources must be objects')
-    merged = {**DEFAULTS, **config}
-    merged['resources'] = {**DEFAULTS['resources'], **(config.get('resources') or {})}
-    merged['agent_resources'] = dict(config.get('agent_resources') or {})
-    require(type(merged['gpus']) is int and 0 <= merged['gpus'] <= 4, 'Declared GPU count must be between 0 and 4')
-    require(merged['workspace_source'] in ('task', 'image'), 'Unknown workspace source')
-    excludes = relative_paths(merged['workspace_excludes'], 'workspace exclude', anchored=True)
-    if merged['workspace_source'] == 'task':
-        # A plain entry is a name excluded anywhere in the task tree; a leading '/' anchors a
-        # path at the task root (so /README.md does not hide nanoGPT/README.md).
-        require(all(item.startswith('/') or '/' not in item for item in excludes),
-                'A plain workspace exclude is one name; anchor a longer path at the task root with a leading /')
-    require(merged['intermediate_network'] in ('none', 'bridge'), 'Unknown intermediate network')
-    require(set(merged['intermediate_cap_add']) <= {'NET_ADMIN', 'NET_RAW'}, 'Only network capabilities may be added to the coordinator')
-    names = merged['intermediate_env']
-    require(isinstance(names, list)
-            and all(isinstance(name, str) and re.fullmatch(r'[A-Z][A-Z0-9_]*', name) and name not in CREDENTIAL_ENV
-                    and name not in RESERVED_ENV and not name.startswith(('LD_', 'PYTHON')) for name in names)
-            and len(set(names)) == len(names),
-            'Invalid evaluation-stage variable: credentials and loader/interpreter variables are never forwarded')
-    hosts = merged['intermediate_add_hosts']
-    require(isinstance(hosts, list) and all(host in EVALUATION_HOSTS for host in hosts if isinstance(host, str))
-            and all(isinstance(host, str) for host in hosts) and len(set(hosts)) == len(hosts),
-            'Unexpected evaluation host entry')
-    require(not hosts or merged['intermediate_network'] == 'bridge', 'Evaluation host entries need the bridge network')
-    check_resources(merged['resources'], 'resource')
-    check_resources(merged['agent_resources'], 'agent resource')
-    check_resources({**merged['resources'], **merged['agent_resources']}, 'agent resource')
-    require(merged['review_profile'] in ('exhaustive', 'indexed'), 'Unknown review profile')
-    protected = relative_paths(merged['protected_workspace_paths'], 'protected workspace path')
-    snapshot_excludes = relative_paths(merged['snapshot_excludes'], 'snapshot exclude')
-    relative_paths(merged['review_metadata_paths'], 'review metadata path')
-    def covers(prefix, value):
-        return value == prefix or value.startswith(prefix + '/')
-    require(not any(covers(item, path) or covers(path, item) for item in snapshot_excludes for path in protected),
-            'Protected workspace paths may not be excluded from the sealed snapshot')
-    require(type(merged['snapshot_worker_home']) is bool, 'snapshot_worker_home must be true or false')
-    # The agent-declared training-dataset manifest the observer verifies and archives after authoring.
-    inside = str(merged.get('workdir', '')).rstrip('/') + '/'
-    manifest, dataset_roots = merged['dataset_manifest'], merged['dataset_roots']
-    require(manifest is None or (isinstance(manifest, str) and manifest.startswith(inside)),
-            'The dataset manifest must be a path inside the workspace')
-    require(isinstance(dataset_roots, list) and all(isinstance(root, str) and root.startswith(inside) for root in dataset_roots)
-            and (manifest is not None or not dataset_roots), 'Dataset roots must lie inside the workspace and need a manifest')
-    require(merged['agent_deadline'] in ('fail', 'evaluate'), 'Unknown agent deadline policy')
-    sandbox = merged['sandbox_worker']
-    if sandbox is not None:
-        ports = sandbox.get('session_ports') if isinstance(sandbox, dict) else None
-        require(isinstance(sandbox, dict) and set(sandbox) == {'port', 'session_ports'} and type(sandbox['port']) is int
-                and 1 <= sandbox['port'] <= 65535 and isinstance(ports, str) and re.fullmatch(r'\d{4,5}-\d{4,5}', ports),
-                'sandbox_worker needs an integer port and a session_ports range such as "30000-30015"')
-        low, high = map(int, ports.split('-'))
-        require(1024 <= low <= high <= 65535 and high - low < 64, 'Invalid session port range')
-    reward = merged['rule_violation_reward']
-    require(type(reward) in (int, float) and math.isfinite(reward), 'Invalid rule-violation reward')
-    if merged['cluster'] is not None:
-        options = merged['cluster']
-        scale = options.get('time_scale', 1) if isinstance(options, dict) else None
-        require(isinstance(options, dict) and type(options.get('repeats', 1)) is int and options.get('repeats', 1) >= 1
-                and type(scale) in (int, float) and math.isfinite(scale) and scale > 0, 'Invalid cluster options')
-    if merged['submission_mount'] is not None:
-        require(str(merged['submission_mount']).startswith('/') and merged['submission_mount'] != merged['workdir'],
-                'Invalid submission mount')
-    return merged
+def load_config(task=None):
+    """The resolved contract of a task directory (spec.load)."""
+    return spec.load(task or TASK)
 
 
 def docker(*args, check=True, env=None, **kwargs):
@@ -207,6 +67,25 @@ def image(value):
     result = json.loads(docker('image', 'inspect', value))[0]
     require(not result.get('Config', {}).get('Volumes'), 'Images may not declare implicit volumes')
     return result['Id']
+
+
+VERIFIER_STAMP = ('import json, sys; sys.path.insert(0, "/opt/breakwater"); import contract; '
+                  'print(json.dumps({"revision": getattr(contract, "FRAMEWORK_REVISION", 1), "tests": '
+                  'contract.tests_digest("/tests") if hasattr(contract, "tests_digest") else None}))')
+
+
+def check_verifier_image(image_id, tests):
+    """Before authoring, not after it: a verifier image bakes the framework and the task's tests, so one built before
+    an upgrade, or before the tests (a rubric, a scorer) changed, is refused now rather than when it verifies."""
+    out = subprocess.run(['docker', 'run', '--rm', '--network=none', '--user=1102:1102', '--entrypoint', 'python3',
+                          image_id, '-I', '-B', '-c', VERIFIER_STAMP], capture_output=True, text=True, timeout=600)
+    require(out.returncode == 0, 'Cannot read the verifier image\'s framework revision: ' + out.stderr.strip()[-500:])
+    stamp = json.loads(out.stdout.strip().splitlines()[-1])
+    require(stamp.get('revision') == FRAMEWORK_REVISION,
+            f'The verifier image has Breakwater revision {stamp.get("revision")}, this launcher {FRAMEWORK_REVISION}: '
+            'rebuild it')
+    require(stamp.get('tests') == tests_digest(tests),
+            "The verifier image's /tests differ from the task's tests/: rebuild it")
 
 
 def inspection(name):
@@ -364,29 +243,6 @@ def captured_agent(name, command, external, budget, *, channels=(('jsonl', 'nati
         process.stderr.close()
 
 
-def load_bindings(path, asset_root, run_root):
-    specs = read_json(path)
-    require(isinstance(specs, list), 'Bindings must be a list')
-    seen = set()
-    for spec in specs:
-        require(set(spec) == {'source', 'target', 'stages'}, 'Unknown input binding field')
-        source = (asset_root / spec['source']).resolve()
-        target = Path(spec['target'])
-        require(source.exists() and source.is_relative_to(asset_root.resolve()) and not overlaps(source, run_root),
-                'Input must be an existing asset under the dedicated asset root')
-        require(target.is_absolute() and '..' not in target.parts and len(target.parts) >= 3,
-                'Invalid asset target')
-        require(target.parts[1] in ('private', 'models', 'assets', 'app', 'workspace'), 'Unexpected asset destination')
-        require(isinstance(spec['stages'], list) and spec['stages'] and
-                set(spec['stages']) <= {'agent', 'intermediate', 'verifier'}, 'Invalid binding stages')
-        require(not ('agent' in spec['stages'] and target.parts[1] == 'private'), 'Private evaluation input exposed to agent')
-        for stage in spec['stages']:
-            require((stage, str(target)) not in seen, 'Duplicate asset destination')
-            seen.add((stage, str(target)))
-        spec['source'] = str(source)
-    return specs
-
-
 def snapshot(container, source, destination, excludes, links=None):
     """Stream a stopped container's files into new host-owned files, without tar links.
 
@@ -486,8 +342,10 @@ def seed_workspace(config, image_id, destination):
     excludes = config.get('workspace_excludes', [])
     if config['workspace_source'] == 'task':
         names = {item for item in excludes if not item.startswith('/')} | {
-            'tests', 'private', '.git', '__pycache__', '.pytest_cache', 'breakwater.json', 'bindings.example.json'}
-        anchored = {item.strip('/') for item in excludes if item.startswith('/')}
+            'tests', 'private', '.git', '__pycache__', '.pytest_cache', 'task.toml'}
+        # The task's trusted runners are mounted for evaluation; the agent's copy would be a decoy.
+        anchored = {item.strip('/') for item in excludes if item.startswith('/')} | (
+            {config['runners'].strip('/')} if config.get('runners') else set())
         def ignore(directory, entries):
             relative = Path(directory).relative_to(TASK)
             return {entry for entry in entries if entry in names or (relative / entry).as_posix() in anchored}
@@ -536,7 +394,7 @@ def service_gateway(name, network, alias, folder, image_id, env_names, env, crea
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--task', type=Path, required=True, help='Task directory, for example tasks/open-ended-nano-gpt')
+    parser.add_argument('--task', type=Path, required=True, help='Task directory, for example examples/word-count')
     parser.add_argument('--agent-image', required=True, help='Prepared protected-author overlay, not a bare task runtime')
     parser.add_argument('--intermediate-image', help='Prepared runtime with run_worker.py and stdio_capture.so; defaults to agent image')
     parser.add_argument('--verifier-image', required=True)
@@ -544,67 +402,78 @@ def main():
     parser.add_argument('--gateway-image', required=True)
     parser.add_argument('--run-dir', type=Path, required=True)
     parser.add_argument('--asset-root', type=Path, required=True)
-    parser.add_argument('--bindings', type=Path, required=True)
+    parser.add_argument('--bindings', type=Path, help="moved asset sources, relative to --asset-root (default: the task's)")
     parser.add_argument('--author-model', required=True)
     parser.add_argument('--author-cli', choices=('codex', 'claude-code'), required=True)
     parser.add_argument('--author-upstream', required=True)
     parser.add_argument('--author-key-env', required=True)
+    parser.add_argument('--author-auth', choices=('bearer', 'anthropic'), default='bearer',
+                        help="how the author gateway sends the provider key: a bearer token, or Anthropic's x-api-key")
     parser.add_argument('--gpus', default=None, help='device=I[,J...] for the declared native NVIDIA CDI devices; none for CPU tasks')
-    # coding-agent-harness: the budgeted development gateway (its own provider key, never in the agent).
-    parser.add_argument('--dev-gateway-image', help='breakwater-dev-gateway image (coding-agent-harness only)')
-    parser.add_argument('--dev-key-env', default='FIREWORKS_API_KEY', help='Upstream key variable for the development gateway')
-    # cluster-serverless: the operator-staged fleet (private manifest stays host-side).
-    parser.add_argument('--fleet', type=Path, help='Private fleet manifest from bin/cluster.sh up (cluster only)')
-    parser.add_argument('--public-fleet', type=Path, help='Matching public fleet view for the agent and the plane')
-    parser.add_argument('--grader-token-env', default='CLUSTER_GRADER_TOKEN')
-    parser.add_argument('--receipt-key-env', default='CLUSTER_RECEIPT_KEY', help='Development receipt key (public by design)')
+    parser.add_argument('--smoke', action='store_true',
+                        help="a smoke run: every stage runs, but the task's evaluation uses its reduced smoke settings "
+                             '(breakwater/SPEC.md); the run is sealed as smoke and its reward is not a benchmark score')
+    # [breakwater.model_access]: the budgeted development gateway (its own provider key, never in the agent).
+    parser.add_argument('--dev-gateway-image', help='breakwater-dev-gateway image (tasks with model access)')
+    parser.add_argument('--dev-key-env', help="the development gateway's upstream key variable (default: the task's "
+                                              'model_access key_env)')
+    parser.add_argument('--judge-concurrency', type=int, choices=range(1, 65), metavar='1-64',
+                        help="Judge calls in flight (default 8): raise it, within the provider's rate limit, so a long "
+                             "run's review fits the task's judge budget")
+    parser.add_argument('--endpoint', action='append', default=[], metavar='NAME=HOST:PORT',
+                        help="where one of the task's [[breakwater.endpoints]] really is (the same port on Docker)")
+    parser.add_argument('--input', action='append', default=[], metavar='NAME=PATH',
+                        help="a file the task's [breakwater.operator] inputs declare (its host hooks read it)")
+    parser.add_argument('--value-env', action='append', default=[], metavar='NAME=VAR',
+                        help="the variable holding a declared operator value (default: the task's)")
+    parser.add_argument('--secret-env', action='append', default=[], metavar='NAME=VAR',
+                        help="the variable holding a declared operator secret (default: the task's); held, never in a "
+                             'container')
     args = parser.parse_args()
     global TASK
     TASK = args.task.resolve()
-    require((TASK / 'breakwater.json').is_file() and (TASK / 'bindings.example.json').is_file(),
-            'Not a Breakwater task directory: ' + str(args.task))
+    require((TASK / 'task.toml').is_file(), 'Not a Breakwater task directory: ' + str(args.task))
     config = load_config()
     selection = args.gpus if args.gpus is not None else ('none' if config['gpus'] == 0 else
                                                          'device=' + ','.join(str(i) for i in range(config['gpus'])))
     gpu_options = gpu_devices(selection, config['gpus'])
     require(args.author_upstream.startswith('https://'), 'Author upstream must use HTTPS')
+    require(args.author_cli != 'codex' or args.author_auth == 'bearer', 'Codex needs --author-auth bearer')
     require(os.environ.get(args.author_key_env) and os.environ.get('FIREWORKS_API_KEY'), 'Missing author/judge credentials')
     # Fail before authoring, not after it: the evaluation stage needs these host variables.
     missing = [name for name in config['intermediate_env'] if not os.environ.get(name)]
     require(not missing, 'Missing evaluation-stage variables: ' + ', '.join(missing))
     development = config['development_gateway']
-    cluster = config['cluster']
+    dev_key_env = args.dev_key_env or (development or {}).get('key_env')
     if development:
-        require(args.dev_gateway_image and os.environ.get(args.dev_key_env), 'Missing development gateway image or key')
-    fleet = public_fleet = None
-    if cluster:
-        import cluster_fleet
-        require(args.fleet and args.public_fleet, 'The cluster task requires --fleet and --public-fleet')
-        require(os.environ.get(args.grader_token_env) and os.environ.get(args.receipt_key_env),
-                'Missing fleet grader token or development receipt key')
-        fleet, public_fleet = read_json(args.fleet), read_json(args.public_fleet)
-        cluster_fleet.check_public_fleet(public_fleet, fleet)
-        catalogue = read_json(TASK / 'tests' / 'public' / 'catalogue.json')
-        cluster_fleet.check_fleet_shape(fleet, catalogue)
-        cluster_fleet.check_fleet_shape(public_fleet, catalogue)
-        suite = read_json(TASK / 'tests' / 'suite-graded.json')
-        qualified = set(suite['qualification'].values()) == {'target-qualified'}
-        # Fail before authoring, not after four hours: a development (unqualified) suite needs an
-        # explicit declaration in the task contract.
-        require(qualified or cluster.get('allow_unqualified'),
-                "The graded suite is not target-qualified; declare cluster.allow_unqualified in the task's "
-                'breakwater.json to grade it as a development suite')
+        require(args.dev_gateway_image and os.environ.get(dev_key_env), 'Missing development gateway image or key')
     run = args.run_dir.resolve()
+    # The task's host side: the operator's inputs, values and secrets (secrets leave this environment now) and its
+    # preflight hook's plan, before the run directory exists.
+    task_host = host_hooks.TaskHost(TASK, config, 'docker', args.smoke, args.input, args.value_env, args.secret_env,
+                                    avoid=(TASK, run))
+    task_host.preflight(reserved=spec.reserved_names(config))
+    # Its credential variables, as the verifier checks them, include any the operator renamed.
+    config = {**config, 'credential_env': sorted({*config['credential_env'], *task_host.operator.credential_names})}
+    # The task's static endpoints with the operator's overrides, healthy before authoring starts, and its hooks'.
+    static = plan_tools.static_endpoints(config, args.endpoint)
+    endpoints = [*static, *task_host.endpoints()]
+    require(not any(row['port_map'] for row in endpoints),
+            'Docker cannot remap an endpoint port: serve it on the port the task declares')
+    roles = plan_tools.by_role(endpoints)
+    require(not (roles['coordinator'] or roles['submission']) or config['intermediate_network'] == 'bridge',
+            'Endpoints the evaluation reaches need [breakwater.evaluation] network = "bridge" on Docker')
+    require(all(plan_tools.launcher_host(row['host']) for row in roles['agent']) or config['agent_extra_networks'],
+            'Endpoints on other hosts need [breakwater.authoring] extra_networks = ["bridge"] on Docker')
+    plan_tools.check_health(static)
     require(not run.exists() and not overlaps(run, TASK) and not overlaps(run, args.asset_root), 'Use a fresh, separate run directory')
-    bindings = load_bindings(args.bindings, args.asset_root, run)
-    expected = {(row['target'], tuple(sorted(row['stages']))) for row in read_json(TASK / 'bindings.example.json')}
-    actual = {(row['target'], tuple(sorted(row['stages']))) for row in bindings}
-    require(actual == expected, 'Binding destinations/stage visibility must match the trusted task contract')
+    bindings = spec.bindings(config, args.asset_root, run, args.bindings)
     # Agent-bound inputs are never part of the submission; neither are the task's snapshot excludes.
     excludes = [spec['target'][len(config['workdir']) + 1:] for spec in bindings
                 if 'agent' in spec['stages'] and spec['target'].startswith(config['workdir'] + '/')]
     excludes += config['snapshot_excludes']
     run.mkdir(parents=True, mode=0o700)
+    task_host.adopt(run)
     external, authority, local, workspace, evaluation, reports = [run / key for key in
         ('external', 'authority', 'agent-local', 'submission', 'evaluation', 'reports')]
     home = run / 'submission-home'
@@ -612,6 +481,10 @@ def main():
     baseline_dir = run / 'environment-baseline'
     for folder in (external, authority, local_live, evaluation, reports, baseline_dir):
         folder.mkdir(mode=0o700)
+    # The resolved contract the coordinator and the verifier read (sealed into the authority by its digest).
+    atomic_json(run / 'contract.json', config)
+    (run / 'contract.json').chmod(0o444)
+    task_plan_sha = task_host.record(external, static)
     # These are separate writable output mounts, never parents of trusted storage.
     local_live.chmod(0o777)
     evaluation.chmod(0o777)
@@ -620,24 +493,24 @@ def main():
            'verifier': image(args.verifier_image), 'observer': image(args.observer_image), 'gateway': image(args.gateway_image)}
     if development:
         ids['dev_gateway'] = image(args.dev_gateway_image)
+    check_verifier_image(ids['verifier'], TASK / 'tests')
     seed_workspace(config, ids['agent'], workspace_live)
-    if cluster:
-        # The agent and the graded plane see the operator's public fleet, never the private manifest.
-        (workspace_live / 'fleet.json').unlink(missing_ok=True)
-        (workspace_live / 'fleet.json').write_bytes(args.public_fleet.read_bytes())
+    task_host.write_workspace_files(workspace_live)
     workspace_baseline = inventory(workspace_live)  # Also rejects symlinks/special files before exposure.
     atomic_json(external / 'workspace-baseline.json', {'source': config['workspace_source'], 'files': workspace_baseline})
-    (external / 'isolation.canary').write_text(secrets.token_hex(32) + '\n')
+    write_canary(external)
     identity = {'task': config['task'], 'run_id': secrets.token_hex(16)}
     names = {stage: 'breakwater-' + identity['run_id'][:12] + '-' + stage for stage in
              ('agent', 'intermediate', 'verifier', 'gateway', 'dev-gateway', 'observe-agent', 'observe-intermediate')}
     network = 'breakwater-' + identity['run_id'][:12]
-    sandbox_network = network + '-sandbox'
+    # Endpoints on the launcher's host and inbound ports: the agent container reaches the launcher's host as this
+    # bridge network's gateway, and servers its commands run are published on the host. (Endpoints on other hosts are
+    # reached through the task's extra networks.)
+    host_network = (network + '-host' if any(plan_tools.launcher_host(row['host']) for row in roles['agent'])
+                    or config['inbound_ports'] else None)
     stages, created = {}, []
     baseline_dir.chmod(0o755)
     protected = [external, authority, reports]
-    cluster_private = None
-    audit_before = audit_root = None
     def assets(stage):
         result = []
         for spec in bindings:
@@ -649,38 +522,22 @@ def main():
         docker('create', '--name', name, '--label', 'breakwater.stage=' + stage, '--ipc=private',
                *options, image_id, *command)
         created.append(name)
-        inspect_boundary(inspection(name), stage, external, protected, gpu_count=config['gpus'])
+        inspect_boundary(inspection(name), stage, external, protected, gpu_count=config['gpus'],
+                         credential_names=config['credential_env'])
         return name
     try:
         if ids['intermediate'] != ids['agent']:
             raise RulesViolation('Agent and intermediate must use the same immutable runtime image in distinct containers')
-        if cluster:
-            import cluster_fleet
-            token = os.environ[args.grader_token_env]
-            audit_root = cluster_fleet.audit_directory(fleet)
-            cluster_fleet.reset(fleet, token)  # No engine from an earlier session survives into authoring.
-            audit_before = cluster_fleet.existing_journals(audit_root)
-            cluster_private = run / 'cluster-private'
-            cluster_private.mkdir(mode=0o700)
-            cluster_fleet.write_private(cluster_private, 'grader-token', token.encode())
-            cluster_fleet.write_private(cluster_private, 'fleet.json', args.fleet.read_bytes())
-            cluster_fleet.write_private(cluster_private, 'fleet.public.json', args.public_fleet.read_bytes())
-            atomic_json(external / 'fleet-manifests.json', {'private_sha256': digest(args.fleet),
-                        'public_sha256': digest(args.public_fleet), 'public': public_fleet,
-                        'run_id': cluster_fleet.run_id(fleet), 'preexisting_journals': audit_before})
+        task_host.before_authoring(external)
         docker('network', 'create', '--internal', network)
-        sandbox = config['sandbox_worker']
-        if sandbox:
-            # rl-swe-agent: the Harbor sandbox worker runs on the host. The agent container reaches it over this
-            # bridge network, and the task sandboxes the worker starts reach the agent's session servers through
-            # ports published on the host (host.docker.internal:PORT), as on a host-networked node.
-            docker('network', 'create', sandbox_network)
+        if host_network:
+            docker('network', 'create', host_network)
         gateway_env = {**os.environ, 'AUTHOR_UPSTREAM_API_KEY': os.environ[args.author_key_env]}
         (external / 'gateway').mkdir(mode=0o700)
         docker('create', '--name', names['gateway'], '--network', network, '--network-alias', 'author-gateway',
                '--user', f'{os.getuid()}:{os.getgid()}', *mount(external / 'gateway', '/logs/author', False),
                '-e', 'AUTHOR_UPSTREAM_API_KEY', '-e', 'AUTHOR_MODEL=' + args.author_model,
-               '-e', 'AUTHOR_UPSTREAM_BASE_URL=' + args.author_upstream, '-e', 'AUTHOR_UPSTREAM_AUTH=bearer',
+               '-e', 'AUTHOR_UPSTREAM_BASE_URL=' + args.author_upstream, '-e', 'AUTHOR_UPSTREAM_AUTH=' + args.author_auth,
                '-e', 'AUTHOR_PROTOCOL=' + ('responses' if args.author_cli == 'codex' else 'messages'),
                '-e', 'AUTHOR_GATEWAY_LOG=/logs/author/requests.jsonl', ids['gateway'], env=gateway_env)
         created.append(names['gateway'])
@@ -690,49 +547,60 @@ def main():
             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/health',timeout=2)"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0, 30, 'author gateway')
         if development:
-            # Only this sidecar holds the development key; worker commands reach it as gateway:8000.
-            dev_env = {**os.environ, 'UPSTREAM_API_KEY': os.environ[args.dev_key_env]}
-            values = ['UPSTREAM_API_KEY', 'GATEWAY_ROLE=development', 'GATEWAY_SOURCE=development-gateway',
-                      'UPSTREAM_BASE_URL=' + development['upstream'],
-                      'CHAT_MODELS=' + json.dumps(development['chat_models'], sort_keys=True),
-                      'EMBED_MODEL=' + development['embed_model'],
-                      f"MAX_CHAT_TOKENS={int(development['max_chat_tokens'])}",
-                      f"MAX_EMBED_TOKENS={int(development['max_embed_tokens'])}"]
-            service_gateway(names['dev-gateway'], network, 'gateway', external / 'dev-gateway', ids['dev_gateway'],
-                            values, dev_env, created, 8000)
-        agent_env = ['-e', 'PYTHONDONTWRITEBYTECODE=1', '-e', 'BREAKWATER_AUTHOR_MODEL=' + args.author_model]
-        environment = None
-        if cluster:
-            environment = {**os.environ, 'CLUSTER_RECEIPT_KEY': os.environ[args.receipt_key_env]}
-            agent_env += ['-e', 'CLUSTER_RECEIPT_KEY', '-e', 'CLUSTER_NODES=' + config['workdir'] + '/fleet.json',
-                          '-e', 'CLUSTER_CATALOGUE=' + config['workdir'] + '/catalogue.json', '-e', 'CLUSTER_FLEET_MODE=real']
-        sandbox_options = []
-        if sandbox:
-            low, high = sandbox['session_ports'].split('-')
-            host_gateway = network_gateway('bridge')  # what host.docker.internal resolves to in the sandboxes
-            sandbox_options = ['-e', f"BREAKWATER_SANDBOX_WORKER={network_gateway(sandbox_network)}:{sandbox['port']}",
-                               '-e', f'BREAKWATER_SESSION_PORTS={low}:{high}',
-                               '--publish', f'127.0.0.1:{low}-{high}:{low}-{high}',
-                               '--publish', f'{host_gateway}:{low}-{high}:{low}-{high}']
+            # Only this sidecar holds the development key; worker commands reach it at the task's model-access
+            # host and port (gateway:8000 by default).
+            dev_env = {**os.environ, 'UPSTREAM_API_KEY': os.environ[dev_key_env]}
+            values = ['UPSTREAM_API_KEY', *[f'{name}={value}' for name, value in spec.model_access_env(development).items()]]
+            service_gateway(names['dev-gateway'], network, development['host'], external / 'dev-gateway',
+                            ids['dev_gateway'], values, dev_env, created, development['port'])
+        agent_env = ['-e', 'PYTHONDONTWRITEBYTECODE=1', '-e', 'BREAKWATER_AUTHOR_MODEL=' + args.author_model,
+                     '-e', 'BREAKWATER_AUTHORING_PLAN']
+        # What the agent's commands get beyond the workspace and the author gateway; the author image applies it. An
+        # endpoint on the launcher's host is the host network's gateway inside the container.
+        host_address = network_gateway(host_network) if host_network else None
+        def where(host):
+            return host_address if plan_tools.launcher_host(host) else host
+        agent_endpoints = [{'name': row['name'], 'host': where(row['host']), 'ports': plan_tools.ranges(row['ports'])}
+                           for row in roles['agent']]
+        inbound = config['inbound_ports']
+        plan = spec.plan_text(spec.authoring_plan(
+            config, endpoints=agent_endpoints, hosts=[[config['inbound_host'], host_address]] if inbound else [],
+            reply_ports=inbound.replace('-', ':') if inbound else None,
+            rejects=[{**row, 'host': where(row['host'])} for row in plan_tools.rejects(roles)],
+            env={**config['authoring_env'], **task_host.agent_env()}))
+        task_host.check_no_secrets(plan)
+        environment = {**os.environ, 'BREAKWATER_AUTHORING_PLAN': plan}
+        (external / 'authoring-plan.json').write_text(plan + '\n')
+        publish = []
+        if inbound:
+            # On the host's loopback and on the default bridge's gateway (what host.docker.internal is in containers
+            # the task's own tools start).
+            publish = ['--publish', f'127.0.0.1:{inbound}:{inbound}',
+                       '--publish', f"{network_gateway('bridge')}:{inbound}:{inbound}"]
         name = names['agent']
         docker('create', '--name', name, '--label', 'breakwater.stage=agent', '--ipc=private',
-               '--network', sandbox_network if sandbox else network, *sandbox_options, *gpu_options, *resource_options(config, agent_resources(config)), '--cap-add=NET_ADMIN', *agent_env,
+               '--network', host_network or network, *publish, *gpu_options, *resource_options(config, agent_resources(config)), '--cap-add=NET_ADMIN', *agent_env,
                *mount(workspace_live, config['workdir'], False), *mount(local_live, '/logs/agent', False),
                *mount(baseline_dir, '/opt/environment-baseline'), *assets('agent'),
                '--entrypoint', 'python3', ids['agent'], '-I', '-B', '/opt/breakwater-runtime/bootstrap.py', env=environment)
         created.append(name)
-        if sandbox:
+        if host_network:
             docker('network', 'connect', network, name)  # the author gateway's network
         for extra in config['agent_extra_networks']:
-            # Remote fleet endpoints only; the protected bootstrap firewall admits exact ports.
+            # Endpoints on other hosts only; the protected bootstrap firewall admits their exact ports.
             require(extra == 'bridge', 'Only the default bridge may be added to authoring')
             docker('network', 'connect', extra, name)
-        inspect_boundary(inspection(name), 'agent', external, protected, gpu_count=config['gpus'])
+        inspect_boundary(inspection(name), 'agent', external, protected, gpu_count=config['gpus'],
+                         credential_names=config['credential_env'])
         agent = name
         docker('start', agent)
         wait_for(lambda: subprocess.run(['docker', 'exec', agent, 'test', '-f', '/run/breakwater/ready'],
                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0,
                  60, 'protected author bootstrap')
+        # The handshake: the bootstrap applied this plan, not an older image's idea of the task.
+        runtime = json.loads(docker('exec', agent, 'cat', '/run/breakwater/runtime.json'))
+        require(runtime.get('plan_sha256') == hashlib.sha256(plan.encode()).hexdigest(),
+                'The author image did not apply this authoring plan: rebuild it from this Breakwater')
         docker('exec', agent, 'touch', '/run/breakwater/external-capture-enabled')
         # The protected launcher constructs a minimal child environment rather
         # than inheriting Docker's env. Avoid legitimate import-cache writes too.
@@ -809,18 +677,20 @@ def main():
             '--cap-add=DAC_OVERRIDE', '--cap-add=KILL', *[f'--cap-add={cap}' for cap in config['intermediate_cap_add']],
             '--security-opt=no-new-privileges:true',
             '-e', 'BREAKWATER_STAGE=intermediate', '-e', 'PYTHONDONTWRITEBYTECODE=1',
+            *(['-e', 'BREAKWATER_SMOKE=1'] if args.smoke else []),
             # Named host variables only (never credentials), and only the host-gateway alias.
             *[item for variable in config['intermediate_env'] for item in ('-e', variable)],
             *[item for host in config['intermediate_add_hosts'] for item in ('--add-host', host)],
             *mount(baseline_dir, '/opt/environment-baseline'), *mount(workspace, submission_target),
             *(mount(home, HOME_MOUNT) if home_sha else []),
             *mount(evaluation, '/evaluation', False), *mount(TASK / 'tests', '/private/tests'),
-            *mount(TASK / 'breakwater.json', '/trusted-task/breakwater.json'),
-            *mount(TASK / 'bindings.example.json', '/trusted-task/bindings.example.json'),
+            *mount(run / 'contract.json', '/trusted-task/contract.json'),
             *mount(HERE, '/opt/breakwater'),
-            *mount(HERE / 'drivers', '/opt/breakwater-drivers'), *assets('intermediate')]
-        if cluster_private:
-            intermediate_options += mount(cluster_private, '/private/cluster')
+            *(mount(TASK / config['runners'], '/opt/breakwater-drivers') if config['runners'] else []),
+            *assets('intermediate')]
+        task_private = task_host.write_private_files(run)
+        if task_private:
+            intermediate_options += mount(task_private, '/private/operator')
         intermediate = create('intermediate', [*intermediate_options, '--entrypoint', 'sleep'], ids['intermediate'], ['infinity'])
         # Native CDI creates driver mountpoints/cache files at start. Initialize
         # only the trusted idle process before comparing like-for-like runtimes;
@@ -843,17 +713,9 @@ def main():
         stages['intermediate'].update(stopped_ns=time.monotonic_ns(), stopped_wall_ns=time.time_ns(), exit_code=result.returncode)
         stages['intermediate']['process_drain'] = no_lingering_processes(intermediate, names['observe-intermediate'], external / 'intermediate')
         stop_observer(names['observe-intermediate'], external / 'intermediate')
-        if cluster:
-            import cluster_fleet
-            # Collected only after both execution containers are dead. The host repeats the
-            # coordinator's final reset (idempotent) so every worker incarnation of this run has
-            # stopped and fsynced its journal, even when evaluation ended abnormally.
-            cluster_fleet.reset(fleet, os.environ[args.grader_token_env])
-            copied = cluster_fleet.collect(audit_root, external / 'fleet-inference', audit_before)
-            journal_report = cluster_fleet.check_journals(external / 'fleet-inference', cluster_fleet.run_id(fleet))
-            atomic_json(external / 'fleet-inference.json', {**journal_report, 'collected': copied,
-                        'windows': {stage: [stages[stage]['started_wall_ns'], stages[stage]['stopped_wall_ns']]
-                                    for stage in ('agent', 'intermediate')}})
+        # Both execution containers are stopped and drained: the task's host side may now collect its evidence.
+        task_host.after_evaluation(external, {stage: [stages[stage]['started_wall_ns'], stages[stage]['stopped_wall_ns']]
+                                              for stage in ('agent', 'intermediate')})
         require(result.returncode == 0, 'Intermediate evaluation failed')
         require(read_json(evaluation / 'complete.json').get('complete') is True, 'Missing intermediate completion')
         eval_snapshot = run / 'evaluation-sealed'
@@ -871,19 +733,23 @@ def main():
         verifier = create('verifier', ['--user=1102:1102', '--read-only', '--cap-drop=ALL',
             '--security-opt=no-new-privileges:true', '--tmpfs', '/tmp:rw,nosuid,nodev,mode=1777,size=2g',
             '-e', 'BREAKWATER_STAGE=verifier', '-e', 'FIREWORKS_API_KEY',
+            *(['-e', f'BREAKWATER_JUDGE_CONCURRENCY={args.judge_concurrency}'] if args.judge_concurrency else []),
             '-e', 'HOME=/tmp/verifier-home', '-e', 'XDG_CACHE_HOME=/tmp/verifier-home/cache',
             *mount(external, '/external-evidence'), *mount(authority, '/authority'), *mount(local, '/agent-local'),
             *mount(workspace, config['workdir']), *(mount(home, HOME_MOUNT) if home_sha else []),
             *mount(evaluation, '/evaluation'),
-            *mount(reports, '/reports', False), *assets('verifier'), '--entrypoint', 'sleep'], ids['verifier'], ['infinity'])
+            *mount(reports, '/reports', False), *mount(run / 'contract.json', '/trusted-task/contract.json'),
+            *assets('verifier'), '--entrypoint', 'sleep'], ids['verifier'], ['infinity'])
         stages['verifier'] = {'inspection': inspection(verifier), 'started_ns': time.monotonic_ns(),
                               'probe': {'status': 'INSPECTED', 'method': 'live read-only write probe is required before scoring'}}
         authority_sha = seal(authority, identity, stages=stages, external_sha256=external_sha,
             evaluation_sha256=evaluation_sha, submission_sha256=submission_sha, local_log_sha256=local_sha,
             **({'home_sha256': home_sha} if home_sha else {}),
             external_host_root=str(external), protected_host_roots=[str(path) for path in protected],
-            pipeline={key: config[key] for key in SEALED_PIPELINE},
-            task_directory=TASK.name)
+            pipeline={key: config[key] for key in SEALED_PIPELINE}, contract_sha256=digest(run / 'contract.json'),
+            framework_revision=FRAMEWORK_REVISION, tests_sha256=tests_digest(TASK / 'tests'),
+            recording=spec.recording(config), **task_host.sealed(task_plan_sha),
+            task_directory=TASK.name, **({'smoke': True} if args.smoke else {}))
         authority.chmod(0o555)
         for path in authority.iterdir():
             path.chmod(0o444)
@@ -893,9 +759,11 @@ def main():
                                '/opt/breakwater/verifier.py', '--authority', authority_sha],
                               timeout=config['judge_timeout_sec'] + 600).returncode
         print(json.dumps({'task': config['task'], 'run_id': identity['run_id'], 'verifier_exit_code': code,
+                          **({'smoke': True} if args.smoke else {}),
                           'reports': str(reports), 'external_sha256': external_sha, 'authority_sha256': authority_sha}))
         return code
     except BaseException as error:
+        task_host.on_failure()
         # Do not discard failed attempts or silently turn incomplete capture into a pass.
         for stage in ('agent', 'intermediate'):
             if names[stage] in created:
@@ -909,12 +777,6 @@ def main():
         for service in ('gateway', 'dev-gateway'):
             if names[service] in created:
                 docker('stop', '--time', '30', names[service], check=False)
-        if cluster and fleet is not None:
-            try:
-                import cluster_fleet
-                cluster_fleet.reset(fleet, os.environ.get(args.grader_token_env, ''))
-            except Exception:
-                pass
         if isinstance(error, RulesViolation):
             violation = config['rule_violation_reward']
             atomic_json(reports / 'reward.json', {'reward': violation})
@@ -929,8 +791,8 @@ def main():
         for name in reversed(created):
             docker('rm', '-f', name, check=False)
         docker('network', 'rm', network, check=False)
-        if config['sandbox_worker']:
-            docker('network', 'rm', sandbox_network, check=False)
+        if host_network:
+            docker('network', 'rm', host_network, check=False)
 
 
 if __name__ == '__main__':

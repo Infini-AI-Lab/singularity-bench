@@ -1,0 +1,77 @@
+# The flash-attn-backward task runtime (a downstream task of the coding-agent-harness grid) as an Apptainer image: a
+# step-for-step translation of environment/Dockerfile (same base image, pins and steps) for hosts without Docker.
+# Build it with environment/build-apptainer.sh, which stages the files the Docker build takes from its context
+# (environment/). CUDA 13 and torch cu130 on every architecture: CUDA 13's nvcc targets GB300's sm_103, and the cu130
+# wheels carry sm_103 kernels. Apptainer pulls the base image for the build host's architecture; GB300 hosts are arm64.
+Bootstrap: docker
+From: nvidia/cuda:{{ CUDA_TAG }}
+
+# The Dockerfile's build arguments, at its defaults (apptainer build --build-arg NAME=VALUE overrides one): the base
+# image's tag, the PyTorch wheel index, and quack-kernels, which pins both CuTe DSL and its cu13 runtime to 4.6.2 (FA-4
+# backward can hang on sm_103 with 4.6.0 and 4.6.1; see Dao-AILab/flash-attention#2797).
+%arguments
+    CUDA_TAG=13.0.2-devel-ubuntu24.04
+    TORCH_CUDA=cu130
+    QUACK_SPEC=quack-kernels[cu13]==0.6.4
+
+# %files: the agent's starting /app: the torch reference (the correctness spec), the performance self-assessment tool
+# and the stub. The FA-3 backward (flash_attn.cute) is not installed.
+%files
+    reference.py /app/reference.py
+    measure.py /app/measure.py
+    attn_backward.py /app/attn_backward.py
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+
+%post -c /bin/bash
+    set -euo pipefail
+    # The Dockerfile's build arguments; Docker also gives them to later steps as variables.
+    export TORCH_CUDA="{{ TORCH_CUDA }}" QUACK_SPEC="{{ QUACK_SPEC }}"
+    export DEBIAN_FRONTEND=noninteractive
+    # %post's /tmp is the build host's: pip's downloads go to a directory in the image instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    # Python and build tools (apt sources are removed at the end).
+    apt-get -o APT::Sandbox::User=root update
+    # An unprivileged build without /etc/subuid ranges maps only the calling user (as root), and dpkg cannot give
+    # package files other owners ("error setting ownership ... Invalid argument"). There, package installs run under
+    # fakeroot, which records those ownership changes instead of making them (every file stays root's); it is removed
+    # at the end of %post.
+    probe=$(mktemp /root/.chown-probe.XXXXXX)
+    if chown 1:1 "${probe}" 2>/dev/null; then fakeroot=""; else
+        apt-get -o APT::Sandbox::User=root install -y --no-install-recommends fakeroot
+        fakeroot="env FAKEROOTDONTTRYCHOWN=1 fakeroot"
+        echo "root-mapped build: package installs run under fakeroot"
+    fi
+    rm -f "${probe}"
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        python3 python3-pip python3-dev git curl ca-certificates build-essential iptables iproute2
+
+    # torch (brings triton), the CuTe DSL environment (quack: nvidia-cutlass-dsl, cuda-python, tvm_ffi) and numpy.
+    pip3 install --break-system-packages --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/${TORCH_CUDA}
+    pip3 install --break-system-packages --no-cache-dir "${QUACK_SPEC}" numpy
+
+    # Process tools (ps, kill, ...) for the harness and the commands it runs.
+    apt-get -o APT::Sandbox::User=root update
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y procps
+
+    # Fail the build, not the trial. The log shows the GPU architectures torch carries (sm_90 for H100/H200, sm_100 for
+    # datacenter Blackwell, whose cubins run on GB300's sm_103) and the CuTe DSL runtime, which must not be 4.6.0/4.6.1.
+    python3 -c "import torch, quack, numpy; print('arch', __import__('platform').machine(), '| torch', torch.__version__, '| gpu archs', torch.cuda.get_arch_list())"
+    python3 -c "from importlib.metadata import version; packages = ('quack-kernels', 'nvidia-cutlass-dsl', 'nvidia-cutlass-dsl-libs-base', 'nvidia-cutlass-dsl-libs-core', 'nvidia-cutlass-dsl-libs-cu12', 'nvidia-cutlass-dsl-libs-cu13'); versions = {p: version(p) for p in packages}; print('FA-4 runtime:', versions); assert all(v not in ('4.6.0', '4.6.1') for p, v in versions.items() if p != 'quack-kernels'), versions"
+
+    # Strip apt sources last.
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list /etc/apt/sources.list.d
+    rm -rf /opt/build-tmp
+
+    # The harness grid's apptainer_cell.py seeds the harness's workspace from the image's /app and starts commands there
+    # (Apptainer has no WORKDIR).
+    mkdir -p /app
+    cd /app
+
+    # The build's own fakeroot (above), when it needed one, is not part of the image.
+    if [ -n "${fakeroot}" ]; then dpkg --purge fakeroot libfakeroot; fi

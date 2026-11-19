@@ -1,0 +1,26 @@
+# The grid cell overlay (Dockerfile.overlay) for Apptainer: a downstream task's image with every pre-baked agent CLI
+# and JavaScript runtime purged, so a submitted harness cannot hand its task to one, and the image's prefetched
+# Hugging Face cache moved where the harness's environment points (HF_HOME=/opt/breakwater-hf-cache). Build it from
+# the task's own SIF, from the repository root (the %files path below is relative to it):
+#   apptainer build --fakeroot --build-arg TASK_SIF=/path/to/task.sif cell.sif tasks/coding-agent-harness/grid/images/apptainer.def
+# apptainer_cell.py refuses an image that still provides an agent CLI or JavaScript runtime, and hides the
+# grader's oracle libraries from the harness and submitted code at run time (the Docker overlay makes them root-only).
+Bootstrap: localimage
+From: {{ TASK_SIF }}
+
+%arguments
+    TASK_SIF=
+
+%files
+    breakwater/author/purge.py /opt/breakwater-purge.py
+
+%post -c /bin/bash
+    set -euo pipefail
+    python3 -I /opt/breakwater-purge.py --task-container
+    rm /opt/breakwater-purge.py
+    if [ -d /root/.cache/huggingface ]; then
+        mkdir -p /opt/breakwater-hf-cache
+        cp -a /root/.cache/huggingface/. /opt/breakwater-hf-cache/
+        rm -rf /root/.cache/huggingface
+        chmod -R a+rX /opt/breakwater-hf-cache
+    fi

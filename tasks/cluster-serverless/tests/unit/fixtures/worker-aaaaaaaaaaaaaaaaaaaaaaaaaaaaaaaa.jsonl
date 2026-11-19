@@ -1,0 +1,12 @@
+{"event": "worker_started", "model": "m", "model_info": {"tp": 1}, "node": "node0", "run_id": "R", "seq": 0, "source": "private-fleet-worker", "time_ns": 50, "utc": "U", "worker": "w1"}
+{"audit_id": "a1", "event": "request", "request": {"max_tokens": 8, "model": "m", "prompt": [1, 2, 3], "routing": {"request_id": "r1"}}, "seq": 1, "source": "private-fleet-worker", "time_ns": 150}
+{"audit_id": "a1", "event": "response", "frame": {"choices": [{"text": "hel"}]}, "seq": 2, "source": "private-fleet-worker", "time_ns": 151}
+{"audit_id": "a1", "event": "response", "frame": {"choices": [{"text": "lo"}]}, "seq": 3, "source": "private-fleet-worker", "time_ns": 152}
+{"audit_id": "a1", "event": "request_finished", "outcome": "completed", "seq": 4, "source": "private-fleet-worker", "time_ns": 153}
+{"audit_id": "a2", "event": "request", "request": {"max_tokens": 16, "model": "m", "prompt": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], "routing": {"request_id": "r2"}}, "seq": 5, "source": "private-fleet-worker", "time_ns": 350}
+{"audit_id": "a2", "event": "response", "frame": {"choices": [{"text": "graded text"}]}, "seq": 6, "source": "private-fleet-worker", "time_ns": 351}
+{"audit_id": "a2", "event": "request_finished", "outcome": "completed", "seq": 7, "source": "private-fleet-worker", "time_ns": 352}
+{"audit_id": "a3", "bytes_base64": "AAAA", "error": "reset", "event": "upstream_error", "seq": 8, "source": "private-fleet-worker", "time_ns": 360}
+{"audit_id": "a4", "event": "request", "request": {"max_tokens": 4, "model": "m", "prompt": [5], "routing": {}}, "seq": 9, "source": "private-fleet-worker", "time_ns": 370}
+{"audit_id": "a4", "event": "response", "frame": {"choices": [{"text": "partial"}]}, "seq": 10, "source": "private-fleet-worker", "time_ns": 371}
+{"event": "worker_stopped", "seq": 11, "source": "private-fleet-worker", "time_ns": 500}

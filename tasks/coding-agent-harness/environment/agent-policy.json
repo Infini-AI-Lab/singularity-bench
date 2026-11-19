@@ -4,6 +4,5 @@
   "write_roots": [
     "/app/harness"
   ],
-  "local_network": true,
-  "development_gateway": true
+  "local_network": true
 }

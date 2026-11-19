@@ -6,17 +6,21 @@ from pathlib import Path, PurePosixPath
 import stat
 
 PROTOCOL = 'breakwater-v1'
+# The rules a launcher seals a run under. A verifier of another revision (a Docker verifier image built before an
+# upgrade, say) refuses the run instead of verifying it under different rules: verify it with the revision that
+# launched it.
+FRAMEWORK_REVISION = 2
 STAGES = ('agent', 'intermediate', 'verifier')
 MODEL = 'accounts/fireworks/models/deepseek-v4p1-flash-1017'
 CHECKS = ('external_integrity', 'three_containers', 'log_isolation', 'capture_complete',
           'local_external_agreement', 'sealed_submission', 'workload_compliance', 'no_tampering',
           'no_lingering_processes', 'runtime_package_integrity')
-# Provider/judge/fleet-admin secrets. None may appear in an execution container's
-# environment; the gateways, the trusted fleet and the final verifier hold them.
+# The framework's provider and judge key variables. None may appear in an execution container's environment; the
+# gateways and the final verifier hold them. A task's own credentials (its declared secrets, its model-access key) join
+# them through the contract's credential_env.
 CREDENTIAL_ENV = ('FIREWORKS_API_KEY', 'FIREWORKS_AI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
                   'BREAKWATER_AUTHOR_API_KEY', 'AUTHOR_UPSTREAM_API_KEY', 'UPSTREAM_API_KEY',
-                  'DEV_UPSTREAM_API_KEY', 'DRIVER_UPSTREAM_API_KEY', 'HARBOR_JUDGE_API_KEY',
-                  'CLUSTER_GRADER_TOKEN', 'GATEWAY_CTL_TOKEN')
+                  'DEV_UPSTREAM_API_KEY', 'HARBOR_JUDGE_API_KEY')
 
 
 class ContractError(ValueError):
@@ -60,6 +64,52 @@ def digest(path):
         for chunk in iter(lambda: stream.read(8 * 1024**2), b''):
             value.update(chunk)
     return value.hexdigest()
+
+
+def tests_digest(root):
+    """One SHA-256 over a task's tests/ tree, every regular file's path and contents with Python caches left out. The
+    launcher seals it; the verifier recomputes it over its /tests, so a verifier image built from other tests (or a
+    rubric or scorer edited since) is refused."""
+    root = Path(root)
+    require(root.is_dir() and not root.is_symlink(), 'Missing task tests')
+    rows = []
+    for directory, dirs, names in os.walk(root, followlinks=False):
+        for name in dirs:
+            require(not (Path(directory) / name).is_symlink(), 'Directory symlink in the task tests')
+        dirs[:] = [name for name in dirs if name != '__pycache__']
+        for name in names:
+            path = Path(directory) / name
+            if name.endswith('.pyc'):
+                continue
+            relative = path.relative_to(root).as_posix()
+            require(stat.S_ISREG(path.lstat().st_mode), 'Nonregular file in the task tests: ' + relative)
+            rows.append(f'{digest(path)}  {relative}\n')
+    return hashlib.sha256(''.join(sorted(rows, key=lambda row: row[66:])).encode()).hexdigest()
+
+
+HOOK_PHASES = ('preflight', 'before_authoring', 'after_evaluation')
+
+
+def check_host_hooks(hooks, authoring_started, evaluation_ended):
+    """The task's host hooks ran outside the execution stages: preflight and before_authoring ended before authoring
+    began, after_evaluation began after evaluation ended. A run whose failure hook ran is never verified."""
+    require(isinstance(hooks, dict) and set(hooks) <= set(HOOK_PHASES) and all(
+        isinstance(span, list) and len(span) == 2 and all(type(value) is int for value in span) and span[0] <= span[1]
+        for span in hooks.values()), 'Invalid host hook record')
+    for phase in ('preflight', 'before_authoring'):
+        if phase in hooks and hooks[phase][1] > authoring_started:
+            raise RulesViolation(f'The {phase} host hook overlapped authoring')
+    if 'after_evaluation' in hooks and hooks['after_evaluation'][0] < evaluation_ended:
+        raise RulesViolation('The after_evaluation host hook overlapped evaluation')
+
+
+def write_canary(external):
+    """The isolation canary in the external evidence: a file no execution stage may see and the verifier may not write.
+    Its random token says what it is, so that no reviewer takes it for a digest."""
+    import secrets
+    path = Path(external) / 'isolation.canary'
+    path.write_text('Breakwater isolation canary, a random token (not a digest): ' + secrets.token_hex(32) + '\n')
+    return path
 
 
 def regular(root, relative):
@@ -116,7 +166,9 @@ def overlaps(first, second):
     return first == second or first.is_relative_to(second) or second.is_relative_to(first)
 
 
-def inspect_boundary(inspection, stage, external_root, protected_roots=(), gpu_count=2):
+def inspect_boundary(inspection, stage, external_root, protected_roots=(), gpu_count=2, credential_names=()):
+    """One Docker container against its stage's boundary. ``credential_names``: the task's own credential variables
+    (its declared secrets and model-access key), forbidden in execution containers like the framework's."""
     require(stage in STAGES, 'Unknown stage')
     require(inspection.get('Image', '').startswith('sha256:') and len(inspection['Image']) == 71, 'Unpinned execution image')
     host = inspection['HostConfig']
@@ -128,8 +180,7 @@ def inspect_boundary(inspection, stage, external_root, protected_roots=(), gpu_c
     require(type(gpu_count) is int and 0 <= gpu_count <= 8, 'Invalid declared GPU count')
     if requests:
         import re
-        # The task declares its exact device count (two by default; one for harness
-        # authoring/cells; zero for the CPU control-plane task). Never more, never "all".
+        # The task declares its exact device count (zero for a CPU task). Never more, never "all".
         require(stage != 'verifier' and gpu_count > 0 and len(requests) == 1, 'Unexpected GPU access')
         request = requests[0]
         ids = request.get('DeviceIDs') or []
@@ -151,6 +202,10 @@ def inspect_boundary(inspection, stage, external_root, protected_roots=(), gpu_c
     if stage == 'agent':
         baseline = [item for item in mounts if item['Destination'] == '/opt/environment-baseline']
         require(len(baseline) == 1 and baseline[0]['RW'] is False, 'Agent runtime inventory must be mounted read-only')
+        # Private evaluation inputs (/private/...) are the coordinator's alone.
+        require(not any(PurePosixPath(item['Destination']) == PurePosixPath('/private')
+                        or PurePosixPath('/private') in PurePosixPath(item['Destination']).parents for item in mounts),
+                'Private evaluation inputs mounted in the agent container')
     if stage == 'verifier':
         require(len(external) == 1 and external[0]['Destination'] == '/external-evidence'
                 and external[0]['RW'] is False, 'Verifier external evidence must be one read-only mount')
@@ -162,5 +217,6 @@ def inspect_boundary(inspection, stage, external_root, protected_roots=(), gpu_c
         require(not external, 'External evidence is mounted in an execution container')
     keys = [value.partition('=')[0] for value in inspection['Config'].get('Env', [])]
     if stage != 'verifier':
-        require(not any(name in keys for name in CREDENTIAL_ENV), 'Provider credential in agent/intermediate')
+        require(not any(name in keys for name in (*CREDENTIAL_ENV, *credential_names)),
+                'Provider credential in agent/intermediate')
     return {'status': 'PASS', 'stage': stage, 'container_id': inspection['Id']}

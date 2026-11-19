@@ -371,12 +371,14 @@ def plan(a):
     return 1 if errors else 0
 
 
-def inspect_arm64(image, env, timeout=60):
-    result = subprocess.run(['docker', 'image', 'inspect', image, '--format', '{{json .}}'],
+def inspect_arm64(image, env, timeout=60, engine='docker'):
+    result = subprocess.run([engine, 'image', 'inspect', image, '--format', '{{json .}}'],
                             capture_output=True, text=True, env=env, timeout=timeout)
     if result.returncode:
         return None
     data = json.loads(result.stdout)
+    if engine == 'podman' and re.fullmatch(r'[0-9a-f]{64}', data.get('Id', '')):
+        data['Id'] = 'sha256:' + data['Id']  # podman leaves out the prefix
     if data.get('Os') != 'linux' or data.get('Architecture') != 'arm64':
         raise ValueError(f'{image}: expected linux/arm64, found {data.get("Os")}/{data.get("Architecture")}')
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', data.get('Id', '')):
@@ -431,10 +433,13 @@ def build(a):
     if a.docker_host:
         env.pop('DOCKER_CONTEXT', None)
         env['DOCKER_HOST'] = a.docker_host
-    info = subprocess.check_output(['docker', 'info', '--format', '{{json .}}'], env=env, text=True, timeout=30)
+    engine = getattr(a, 'engine', 'docker')
+    info = subprocess.check_output([engine, 'info', '--format', '{{json .}}'], env=env, text=True, timeout=30)
     info = json.loads(info)
-    if info.get('OSType') != 'linux' or info.get('Architecture') not in ('aarch64', 'arm64'):
-        raise ValueError('Build on a native Linux ARM64 daemon; x86 emulation is not an ARM64 validation')
+    host = info.get('host') or {}  # podman reports host.os and host.arch; Docker OSType and Architecture
+    if ((info.get('OSType') or host.get('os')) != 'linux'
+            or (info.get('Architecture') or host.get('arch')) not in ('aarch64', 'arm64')):
+        raise ValueError('Build on a native Linux ARM64 engine; x86 emulation is not an ARM64 validation')
     receipt = {'platform': PLATFORM, 'plan_sha256': sha(plan_path.read_bytes()), 'built': {}, 'failed': {}}
     pending = dict(data['nodes'])
     def build_node(item):
@@ -446,12 +451,12 @@ def build(a):
             if sorted(str(p.relative_to(context)) for p in context.rglob('*')
                       if p.is_file() and p.name != 'build.log' and p.stat().st_mode & 0o111) != node.get('executable', []):
                 raise ValueError('Build context executable permissions changed after planning')
-            identity = inspect_arm64(image, env)
+            identity = inspect_arm64(image, env, engine=engine)
             if not identity:
                 with (context/'build.log').open('w') as stream:
-                    subprocess.run(['docker', 'build', '--platform', PLATFORM, '-t', image, str(context)],
+                    subprocess.run([engine, 'build', '--platform', PLATFORM, '-t', image, str(context)],
                                    check=True, stdout=stream, stderr=subprocess.STDOUT, env=env, timeout=a.timeout)
-                identity = inspect_arm64(image, env)
+                identity = inspect_arm64(image, env, engine=engine)
             if not identity:
                 raise ValueError('Built image missing')
             return image, identity, None
@@ -474,7 +479,7 @@ def build(a):
         if not identity:
             continue
         try:
-            command = ['docker', 'run', '--rm', '--platform', PLATFORM, '--network', 'none',
+            command = [engine, 'run', '--rm', '--platform', PLATFORM, '--network', 'none',
                        '--entrypoint', 'sh', identity, '-ec', 'test "$(uname -m)" = aarch64; '
                        + ('/opt/miniconda3/envs/testbed/bin/python' if key.startswith('swebench-') else 'python3')
                        + ' -c \'import platform; assert platform.machine() == "aarch64"\'']
@@ -552,6 +557,9 @@ def main():
     build_p = commands.add_parser('build')
     build_p.add_argument('--plan', type=Path, required=True)
     build_p.add_argument('--docker-host')
+    build_p.add_argument('--engine', choices=('docker', 'podman'), default='docker',
+                         help='podman builds rootless; without subordinate UID ranges, packages whose files belong to '
+                              'other users fail to install, so build such images where Docker or ranges are available')
     build_p.add_argument('--workers', type=int, default=2)
     build_p.add_argument('--timeout', type=int, default=7200)
     build_p.set_defaults(func=build)

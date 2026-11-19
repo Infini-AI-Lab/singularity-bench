@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Hash-chained OpenAI-compatible model gateway for harness development and grid cells.
+"""Hash-chained OpenAI-compatible model gateway: a task's model access, or the model of a submitted agent.
 
-ROLE=development (harness authoring): the development-model contract published in the
-coding-agent-harness instruction and spec -- aliases ``chat``/``chat-b`` and ``embed``,
-text-only non-streaming chat with one explicit output bound, persistent atomic token
-reservations, refunds against reported usage, no silent truncation.
+ROLE=development ([breakwater.model_access]): the chat aliases and models the task declares
+(CHAT_MODELS) and, when it declares one, the embedding model as ``embed`` -- text-only
+non-streaming chat with one explicit output bound, persistent atomic token reservations
+within the declared allowances, refunds against reported usage, no silent truncation.
 
-ROLE=driver (one downstream grid cell): the driver model behind two lanes. The
-ModelClient lane (``/driver/v1/...``) is used by the trusted cell driver; the utility
-lane (``/v1/...``) is the harness's own served endpoint. Both lanes resolve every chat
-alias to the cell's driver model and ``embed`` to the fixed embedding model. Cells have
-no token budget (wall clock is their only budget).
+ROLE=driver (a submitted agent started by a trusted launcher): one model (DRIVER_MODEL)
+behind two lanes. The trusted lane (``/driver/v1/...``) serves the launcher's own client;
+the utility lane (``/v1/...``) is the submitted agent's endpoint. Both lanes resolve
+every chat alias to that model and ``embed`` to EMBED_MODEL. No token budget: the wall
+clock is the only one.
 
 The upstream key exists only in this sidecar. Every request body is journaled before
 it is forwarded and every upstream response is journaled before it is delivered, in a
@@ -32,6 +32,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import socketserver
 
 ROLE = os.environ.get('GATEWAY_ROLE', 'development')
 UPSTREAM = os.environ.get('UPSTREAM_BASE_URL', 'https://api.fireworks.ai/inference/v1').rstrip('/')
@@ -40,7 +41,7 @@ LOG = os.environ.get('GATEWAY_LOG', '/logs/gateway/requests.jsonl')
 STATE = os.environ.get('GATEWAY_STATE', '/logs/gateway/budget.json')
 CHAT_MODELS = json.loads(os.environ.get('CHAT_MODELS', '{}'))
 DRIVER_MODEL = os.environ.get('DRIVER_MODEL', '')
-EMBED_MODEL = os.environ.get('EMBED_MODEL', 'accounts/fireworks/models/qwen3-embedding-8b')
+EMBED_MODEL = os.environ.get('EMBED_MODEL', '')  # none: no embedding route
 MAX_CHAT_TOKENS = int(os.environ.get('MAX_CHAT_TOKENS', '0'))
 MAX_EMBED_TOKENS = int(os.environ.get('MAX_EMBED_TOKENS', '0'))
 UPSTREAM_TIMEOUT = float(os.environ.get('UPSTREAM_TIMEOUT', '600'))
@@ -207,19 +208,21 @@ def route(path):
 
 
 def resolve(alias, kind):
+    if kind == 'embed' and not EMBED_MODEL:
+        return None
     if ROLE == 'development':
         if kind == 'chat':
             return CHAT_MODELS.get(alias) if isinstance(alias, str) else None
         return EMBED_MODEL if alias in ('embed', EMBED_MODEL) else None
     if kind == 'chat':
-        # Every chat alias a harness learned during development resolves to the driver,
-        # so the utility model and the ModelClient are one configuration per cell.
+        # Every chat alias the submitted agent was developed against resolves to the driver model, so its own
+        # endpoint and the trusted client are one configuration per run.
         return DRIVER_MODEL if alias in (None, 'chat', 'chat-b', 'driver', DRIVER_MODEL) else None
     return EMBED_MODEL if alias in (None, 'embed', EMBED_MODEL) else None
 
 
 def driver_policy(payload):
-    """Cells forward the harness's generation options; only transport shape is enforced."""
+    """The driver role forwards the submitted agent's generation options; only transport shape is enforced."""
     if payload.get('stream', False) is not False:
         raise ValueError('Streaming is not supported by the evaluation endpoint')
     if 'n' in payload and payload['n'] != 1:
@@ -259,7 +262,7 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 body = {'ok': bool(KEY) and not _state['faulted'] and not _closed, 'role': ROLE,
                         'chat_models': sorted(CHAT_MODELS) if ROLE == 'development' else ['chat', 'chat-b', 'driver'],
-                        'embed_model': 'embed', 'chat_tokens_reserved': _state['chat_reserved'],
+                        'embed_model': 'embed' if EMBED_MODEL else None, 'chat_tokens_reserved': _state['chat_reserved'],
                         'embed_tokens_reserved': _state['embed_reserved']}
                 if MAX_CHAT_TOKENS:
                     body['chat_tokens_left'] = max(0, MAX_CHAT_TOKENS - _state['chat_tokens'])
@@ -269,7 +272,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.rstrip('/') in ('/v1/models', '/driver/v1/models'):
             names = sorted(CHAT_MODELS) if ROLE == 'development' else ['chat', 'chat-b', 'driver']
             return self.send(200, {'object': 'list', 'data': [{'id': n, 'object': 'model'} for n in names]
-                                   + [{'id': 'embed', 'object': 'model'}]})
+                                   + ([{'id': 'embed', 'object': 'model'}] if EMBED_MODEL else [])})
         return self.reject(404, 'unknown_route', 'Unknown route', method='GET', path=self.path[:200])
 
     def do_POST(self):
@@ -328,7 +331,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(503, {'error': {'type': 'accounting_unavailable'}})
         request = urllib.request.Request(UPSTREAM + upstream_route, data=json.dumps(wire).encode(), headers={
             'Content-Type': 'application/json', 'Authorization': f'Bearer {KEY}',
-            'User-Agent': 'singularity-bench-gateway/2.1'})
+            'User-Agent': 'breakwater-dev-gateway/2.1'})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
         used, status, body, outcome = reserved, 502, b'{"error": {"type": "upstream_unavailable"}}', 'upstream_unavailable'
         try:
@@ -383,12 +386,13 @@ def initialize():
     if ROLE not in ('development', 'driver'):
         raise SystemExit('GATEWAY_ROLE must be development or driver')
     if ROLE == 'development':
-        CHAT_MODELS = CHAT_MODELS or {'chat': 'accounts/fireworks/models/glm-5p3',
-                                      'chat-b': 'accounts/fireworks/models/kimi-k3'}
-        if set(CHAT_MODELS) != {'chat', 'chat-b'} or not all(isinstance(v, str) and v for v in CHAT_MODELS.values()):
-            raise SystemExit('Development gateway requires exactly chat and chat-b')
-        if min(MAX_CHAT_TOKENS, MAX_EMBED_TOKENS) <= 0:
-            raise SystemExit('Development gateway requires positive token allowances')
+        import re
+        if not isinstance(CHAT_MODELS, dict) or not CHAT_MODELS or not all(
+                isinstance(alias, str) and re.fullmatch(r'[a-z0-9][a-z0-9._-]*', alias) and isinstance(model, str) and model
+                for alias, model in CHAT_MODELS.items()):
+            raise SystemExit('Development gateway requires at least one chat alias and its model (CHAT_MODELS)')
+        if min(MAX_CHAT_TOKENS, MAX_EMBED_TOKENS) < 0:
+            raise SystemExit('Token allowances are positive, or 0 for none')
     elif not DRIVER_MODEL:
         raise SystemExit('Driver gateway requires DRIVER_MODEL')
     parsed = urllib.parse.urlsplit(UPSTREAM)
@@ -400,6 +404,15 @@ def initialize():
         raise SystemExit('Use a fresh gateway journal for every trial')
     persist()
     audit({'event': 'gateway_started', 'configuration': configuration()})
+
+
+class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    request_queue_size = 128
+    daemon_threads = True
+
+    def get_request(self):
+        connection, _ = super().get_request()
+        return connection, ('unix', 0)
 
 
 def finalize():
@@ -428,6 +441,11 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
     initialize()
+    if os.environ.get('GATEWAY_SOCKET'):
+        # The Apptainer backend: a host process on a unix socket no sandbox can see, reached through relays.
+        server = UnixServer(os.environ['GATEWAY_SOCKET'], Handler)
+        os.chmod(os.environ['GATEWAY_SOCKET'], 0o600)
+        server.serve_forever()
     Server(('0.0.0.0', PORT), Handler).serve_forever()
 
 

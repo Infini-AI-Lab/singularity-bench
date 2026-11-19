@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Prepare the open-ended-nano-gpt assets under ASSET_ROOT, the directory later passed to
-# breakwater/run.py as --asset-root. ASSET_ROOT must lie outside the task directory.
+# breakwater run as --asset-root. ASSET_ROOT must lie outside the task directory and hold the files themselves:
+# the containers see only ASSET_ROOT, so a symbolic link out of it does not resolve there (with Apptainer, bind the
+# link's target too: APPTAINER_BIND=TARGET:TARGET:ro).
 #
 #   bash tasks/open-ended-nano-gpt/prepare.sh ASSET_ROOT          # download, tokenize, prepare LAMBADA
 #   bash tasks/open-ended-nano-gpt/prepare.sh --check ASSET_ROOT  # validate only; downloads and writes nothing
 #
-# Layout under ASSET_ROOT (the sources in bindings.example.json):
+# Layout under ASSET_ROOT (the sources of [[breakwater.assets]] in task.toml):
 #   openwebtext_preprocessing/openwebtext_presplit_raw/       pinned presplit OpenWebText snapshot
 #   open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full/  train.bin, meta.json: agent, read-only
 #   private_validation/openwebtext_qwen3_full/                test.bin, meta.json: evaluation and verifier only
 #   private_validation/lambada/                               LAMBADA: evaluation and verifier only
 #
-# Tokenization runs offline in the task runtime image (build it first with environment/build.sh);
-# downloads use the host Hugging Face CLI. Valid outputs are reused.
+# Tokenization runs offline in the task runtime image (build it first with environment/build.sh), or, on a host
+# without Docker, in its SIF: PREPARE_RUNTIME=apptainer TASK_SIF=open-ended-nano-gpt.sif (environment/
+# build-apptainer.sh). Downloads use the host Hugging Face CLI. Valid outputs are reused.
 set -euo pipefail
 
 check=0
@@ -46,12 +49,39 @@ train_dir=open-ended-nano-gpt/nanoGPT/data/openwebtext_qwen3_full
 validation_dir=private_validation/openwebtext_qwen3_full
 lambada_dir=private_validation/lambada
 
-if ! docker image inspect "${task_image}" >/dev/null 2>&1; then
-  echo "Missing image ${task_image}: build it first with ${task_root}/environment/build.sh" >&2
-  exit 1
-fi
+runtime=${PREPARE_RUNTIME:-docker}
+case "${runtime}" in
+  docker)
+    if ! docker image inspect "${task_image}" >/dev/null 2>&1; then
+      echo "Missing image ${task_image}: build it first with ${task_root}/environment/build.sh" >&2
+      exit 1
+    fi ;;
+  apptainer)
+    if [[ ! -f "${TASK_SIF:-}" ]]; then
+      echo "Set TASK_SIF to the task runtime SIF: build it with ${task_root}/environment/build-apptainer.sh" >&2
+      exit 1
+    fi ;;
+  *) echo "PREPARE_RUNTIME must be docker or apptainer" >&2; exit 2 ;;
+esac
 
 preprocess() {
+  local script=(/task/prepare_presplit_openwebtext_qwen3.py
+    --input-dir "/assets/${raw_dir}"
+    --tokenizer /task/models
+    --train-output-dir "/assets/${train_dir}"
+    --test-output-dir "/assets/${validation_dir}"
+    --batch-size "${batch_size}"
+    "$@")
+  if [[ "${runtime}" == apptainer ]]; then
+    # --workdir: the container's /tmp and an empty home on disk, not a small session tmpfs.
+    mkdir -p "${asset_root}/.apptainer-work"
+    apptainer exec --containall --cleanenv --workdir "${asset_root}/.apptainer-work" \
+      --env HF_HUB_OFFLINE=1 --env TRANSFORMERS_OFFLINE=1 --env PYTHONDONTWRITEBYTECODE=1 \
+      --env TOKENIZERS_PARALLELISM=true \
+      --bind "${task_root}:/task:ro" --bind "${asset_root}:/assets" --pwd /assets \
+      "${TASK_SIF}" python "${script[@]}"
+    return
+  fi
   docker run --rm \
     --entrypoint python \
     --env HF_HUB_OFFLINE=1 \
@@ -62,13 +92,7 @@ preprocess() {
     --volume "${asset_root}:/assets" \
     --workdir /assets \
     "${task_image}" \
-    /task/prepare_presplit_openwebtext_qwen3.py \
-    --input-dir "/assets/${raw_dir}" \
-    --tokenizer /task/models \
-    --train-output-dir "/assets/${train_dir}" \
-    --test-output-dir "/assets/${validation_dir}" \
-    --batch-size "${batch_size}" \
-    "$@"
+    "${script[@]}"
 }
 
 lambada() {

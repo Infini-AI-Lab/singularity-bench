@@ -1,8 +1,8 @@
 schema_version = "1.1"
 
-# Harbor task declaration. The task runs only under Breakwater (breakwater/run.py): its contract (stage budgets,
-# GPUs, resources, workspace and submission mounts) is breakwater.json, and tests/test.sh refuses any other
-# launch path.
+# Harbor task declaration. The task runs only under Breakwater (python3 -m breakwater run): its contract (stage
+# budgets, GPUs, resources, workspace and submission mounts) is the [breakwater] tables below, and tests/test.sh
+# refuses any other launch path.
 
 [task]
 name = "singularity-bench/serve-glm53-flash"
@@ -15,6 +15,8 @@ keywords = [
 ]
 
 [metadata]
+author_name = "InfiniAILab"
+author_email = "zhuominc@andrew.cmu.edu"
 suite = "singularity-bench"
 group = "llm-serving"
 level = "1.0"
@@ -26,7 +28,7 @@ tags = [
 ]
 
 [verifier]
-# The integrity judge's budget (judge_timeout_sec in breakwater.json). The verifier container is read-only and
+# The integrity judge's budget (as [breakwater.judge] timeout_sec). The verifier container is read-only and
 # has no GPU: it checks the seals and logs, recomputes the income and both gates from the sealed raw outputs,
 # then runs the integrity judge. Grading itself runs before it, in the intermediate container.
 timeout_sec = 10800.0
@@ -51,3 +53,48 @@ memory_mb = 524288
 storage_mb = 1048576
 gpus = 4
 gpu_types = ["GB300"]
+
+# Breakwater: see breakwater/SPEC.md. [agent] timeout_sec is the authoring budget; [environment] gpus,
+# gpu_types and workdir apply too.
+[breakwater]
+name = "serve-glm53-flash"
+failure_reward = 0.0
+agent_deadline = "evaluate"
+review_profile = "indexed"
+
+[breakwater.judge]
+timeout_sec = 10800
+
+[breakwater.workspace]
+source = "image"
+submission_mount = "/submission"
+
+[breakwater.evaluation]
+timeout_sec = 21600
+ports = [8000]
+
+[breakwater.evaluation.worker_env]
+PATH = "/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+HOME = "/tmp/worker"
+TMPDIR = "/tmp/worker"
+BREAKWATER_WORKDIR = "/app"
+LANG = "C.UTF-8"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+HF_HUB_OFFLINE = "1"
+TORCH_CUDA_ARCH_LIST = "10.0 10.3"
+HF_HOME = "/home/worker/.cache/huggingface"
+
+[breakwater.scoring]
+recomputed = ["raw/traffic-pass-*.json", "raw/accuracy.generations.json", "raw/traffic_records.json"]
+
+[breakwater.resources]
+cpus = 16
+memory_mb = 524288
+shm_size = "256g"
+
+[[breakwater.assets]]
+name = "model"
+source = "serving/GLM-5.3-Flash"
+target = "/models/GLM-5.3-Flash"
+stages = ["agent", "evaluation"]

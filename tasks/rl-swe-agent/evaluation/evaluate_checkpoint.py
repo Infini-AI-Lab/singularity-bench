@@ -7,6 +7,11 @@ Harbor, one attempt per task, on the 73 development tasks and the fixed 100-task
 under one four-hour budget that includes setup and cleanup. The result is OUTPUT/summary.json, which score.py
 turns into the reward. The submitted training code is never executed, and no oracle answer enters a policy
 request.
+
+The audit and the policy server run from the evaluation runtime: the Docker image (default) or, on a host without
+Docker, its Apptainer image (--runtime apptainer --eval-sif). The task sandboxes run in Docker (default) or rootless
+podman (--sandboxes podman, with worker/podman/podman-store.sh sourced and the task images loaded); the policy server
+then listens on the host's loopback, which the sandboxes reach as host.docker.internal.
 """
 import argparse
 from datetime import datetime, timezone
@@ -19,6 +24,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -36,6 +42,52 @@ SANDBOX_PLATFORM = 'linux/arm64'  # GB300 hosts; every task image is checked bef
 # FlashInfer's SM100 prefill kernel rejects GLM-4.7-Flash's 256-dim heads on GB300; TRT-LLM MLA serves it.
 ATTENTION_BACKEND = 'trtllm_mla'
 AGENT_VERSION = '2.4.6'
+
+
+def file_sha256(path):
+    hasher = hashlib.sha256()
+    with open(path, 'rb') as stream:
+        for block in iter(lambda: stream.read(1 << 20), b''):
+            hasher.update(block)
+    return 'sha256:' + hasher.hexdigest()
+
+
+def apptainer():
+    return shutil.which('apptainer') or shutil.which('singularity') or 'apptainer'
+
+
+def audit_command(a, runtime_image, checkpoint, name, scratch=None):
+    """This repository's export audit (mini_slime.model.checkpoint) on the candidate, without network."""
+    binds = [(TASK / 'mini_slime', '/trusted/mini_slime', 'ro'), (a.base_model.resolve(), '/base', 'ro'),
+             (checkpoint, '/candidate', 'ro'), (a.output, '/report', 'rw')]
+    audit = ['-m', 'mini_slime.model.checkpoint', '--base', '/base', '--updated', '/candidate',
+             '--report', '/report/export-audit.json']
+    if a.runtime == 'apptainer':
+        # --workdir: the container's /tmp, /var/tmp and empty home on local disk, not a small session tmpfs.
+        return [apptainer(), 'exec', '--userns', '--containall', '--cleanenv', '--workdir', str(scratch), '--net',
+                '--network', 'none',
+                *[item for source, target, mode in binds for item in ('--bind', f'{source}:{target}:{mode}')],
+                '--pwd', '/trusted', str(a.eval_sif), 'python', *audit]
+    return ['docker', 'run', '--rm', '--init', '--name', name, '--network', 'none', '--memory', '100g', '--cpus', '4',
+            *[item for source, target, mode in binds for item in ('-v', f'{source}:{target}' + (':ro' if mode == 'ro' else ''))],
+            '-w', '/trusted', '--entrypoint', 'python', runtime_image, *audit]
+
+
+def serve_command(a, runtime_image, checkpoint, name, host, scratch=None):
+    """SGLang serving the candidate on the four GPUs as four data-parallel replicas, on the host's network."""
+    server = ['-m', 'sglang.launch_server', '--model-path', '/eval-model', '--served-model-name', 'model', '--tp', '1',
+              '--dp-size', '4', '--context-length', str(CONTEXT), '--mem-fraction-static', '0.7',
+              '--tool-call-parser', 'glm47', '--reasoning-parser', 'glm45', '--cuda-graph-max-bs-decode', '8',
+              '--cuda-graph-backend-prefill', 'disabled', '--host', host, '--port', str(a.port),
+              '--attention-backend', ATTENTION_BACKEND]
+    if a.runtime == 'apptainer':
+        return [apptainer(), 'exec', '--userns', '--containall', '--cleanenv', '--workdir', str(scratch), '--nv',
+                '--env', f'CUDA_VISIBLE_DEVICES={a.gpus}', '--env', f'EVAL_CONTEXT_LIMIT={CONTEXT}',
+                '--bind', f'{checkpoint}:/eval-model:ro', str(a.eval_sif), 'python', *server]
+    return ['docker', 'run', '--rm', '--init', '--name', name, '--gpus', f'"device={a.gpus}"',
+            '--network', 'host', '--ipc', 'host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864',
+            '-e', f'EVAL_CONTEXT_LIMIT={CONTEXT}', '-v', f'{checkpoint}:/eval-model:ro',
+            '--entrypoint', 'python', runtime_image, *server]
 
 
 def run_logged(command, log, timeout, env=None, deadline=None):
@@ -61,16 +113,36 @@ def main():
     p.add_argument('--uv', default='uv', help='The uv executable that runs Harbor from its lockfile')
     p.add_argument('--eval-image', default='rl-swe-agent-eval:local',
                    help='The evaluation runtime image (evaluation/Dockerfile), used by the audit and the policy server')
+    p.add_argument('--runtime', choices=('docker', 'apptainer'), default='docker',
+                   help='How the audit and the policy server run: the Docker image, or its Apptainer image (--eval-sif)')
+    p.add_argument('--eval-sif', type=Path, help='The evaluation runtime as a SIF (evaluation/apptainer.def)')
+    p.add_argument('--sandboxes', choices=('docker', 'podman'), default='docker',
+                   help="The task sandboxes' container engine; podman runs rootless (worker/podman/podman-store.sh)")
+    p.add_argument('--scratch', type=Path, help="Local disk for the Apptainer containers' /tmp and home (default: TMPDIR)")
     p.add_argument('--gpus', default='0,1,2,3', help='Four distinct physical GPU indices')
-    p.add_argument('--api-host', required=True,
-                   help='Address at which the task sandboxes reach the policy server on this host')
+    p.add_argument('--api-host',
+                   help='Address at which the task sandboxes reach the policy server on this host '
+                        '(default with podman: host.docker.internal, the host loopback)')
     p.add_argument('--port', type=int, default=32200)
     p.add_argument('--sandbox-docker-host', help='Optional separate Docker endpoint for the Harbor sandboxes only')
     p.add_argument('--output', type=Path, required=True, help='A new directory for the evaluation record')
     a = p.parse_args()
     if not re.fullmatch(r'[0-7](,[0-7]){3}', a.gpus) or len(set(a.gpus.split(','))) != 4:
         p.error('--gpus needs exactly four distinct physical GPU indices')
+    if a.runtime == 'apptainer' and not (a.eval_sif and a.eval_sif.is_file()):
+        p.error('--runtime apptainer needs --eval-sif, the evaluation runtime SIF')
+    if a.sandboxes == 'podman' and a.sandbox_docker_host:
+        p.error('--sandbox-docker-host is for Docker sandboxes')
+    a.api_host = a.api_host or ('host.docker.internal' if a.sandboxes == 'podman' else None)
+    if not a.api_host:
+        p.error('--api-host is required with Docker sandboxes')
+    # Rootless podman sandboxes reach the host's loopback; Docker sandboxes reach the host over a bridge.
+    serve_host = '127.0.0.1' if a.sandboxes == 'podman' else '0.0.0.0'
     sandbox_env = dict(os.environ)
+    if a.sandboxes == 'podman':
+        sys.path.insert(0, str(TASK / 'worker' / 'podman'))
+        import harbor_podman_hooks
+        sandbox_env = harbor_podman_hooks.environment(sandbox_env)
     if a.sandbox_docker_host:
         sandbox_env.pop('DOCKER_CONTEXT', None)
         sandbox_env['DOCKER_HOST'] = a.sandbox_docker_host
@@ -81,6 +153,7 @@ def main():
     serving = 'rl-swe-agent-eval-' + hashlib.sha256(str(a.output).encode()).hexdigest()[:16]
     summary['serving_container'] = serving
     server_proc = None
+    scratch = None
     audit_containers = []
     jobs = {}
     selected = {}
@@ -94,8 +167,9 @@ def main():
         if not (checkpoint / '.complete').is_file():
             raise ValueError('The checkpoint lacks the .complete marker of a validated mini_slime export')
         summary['checkpoint'] = str(checkpoint)
-        runtime_image = budget.run(['docker', 'image', 'inspect', a.eval_image, '--format', '{{.Id}}'],
-                                   capture_output=True, text=True, check=True).stdout.strip()
+        runtime_image = (file_sha256(a.eval_sif) if a.runtime == 'apptainer' else
+                         budget.run(['docker', 'image', 'inspect', a.eval_image, '--format', '{{.Id}}'],
+                                    capture_output=True, text=True, check=True).stdout.strip())
         if not re.fullmatch(r'sha256:[0-9a-f]{64}', runtime_image):
             raise ValueError('Invalid evaluation runtime image ID')
         uv = shutil.which(a.uv)
@@ -119,7 +193,8 @@ def main():
             raise ValueError('SWE subset names excluded or unknown tasks')
         if subset['swe_exclusions_sha256'] != hashlib.sha256(exclusions_file).hexdigest():
             raise ValueError('SWE subset was drawn against different exclusions')
-        settings = {'runtime_image_id': runtime_image, 'context_limit': CONTEXT,
+        settings = {'runtime_image_id': runtime_image, 'runtime': a.runtime, 'sandboxes': a.sandboxes,
+                    'context_limit': CONTEXT,
                     'harbor_commit': harbor_commit, 'harbor_patch_sha256': hashlib.sha256(harbor_patch).hexdigest(),
                     'max_tokens': MAX_TOKENS, 'agent': 'mini-swe-agent', 'agent_version': AGENT_VERSION,
                     'n_attempts': 1, 'concurrency': CONCURRENCY,
@@ -134,14 +209,14 @@ def main():
         summary['settings'] = settings
         # The export audit runs this repository's checkpoint checker, never the submission's copy.
         audit_name = serving + '-audit'
-        audit_containers.append(audit_name)
-        run_logged(['docker', 'run', '--rm', '--init', '--name', audit_name,
-            '--network', 'none', '--memory', '100g', '--cpus', '4',
-            '-v', f'{TASK / "mini_slime"}:/trusted/mini_slime:ro',
-            '-v', f'{a.base_model.resolve()}:/base:ro', '-v', f'{checkpoint}:/candidate:ro',
-            '-v', f'{a.output}:/report', '-w', '/trusted', '--entrypoint', 'python', runtime_image,
-            '-m', 'mini_slime.model.checkpoint', '--base', '/base', '--updated', '/candidate',
-            '--report', '/report/export-audit.json'], a.output / 'export-audit.log', 1200, deadline=budget)
+        if a.runtime == 'docker':
+            audit_containers.append(audit_name)
+        else:
+            scratch = Path(tempfile.mkdtemp(prefix='rl-swe-agent-eval-', dir=a.scratch))
+            (scratch / 'audit').mkdir()
+            (scratch / 'serve').mkdir()
+        run_logged(audit_command(a, runtime_image, checkpoint, audit_name, scratch and scratch / 'audit'),
+                   a.output / 'export-audit.log', 1200, deadline=budget)
         summary['export_audit_pass'] = True
         # SWE-bench Verified tasks outside the fixed subset leave the suite and its denominator, like the exclusions.
         excluded = sorted(set(swe_tasks) - set(subset['tasks']))
@@ -151,18 +226,12 @@ def main():
                          if not k.startswith('swebench-verified/') or k in keep})
         selected = prepare_suites({'rl-swe-agent-dev': a.dev_data, 'swebench-verified': a.swe_benchmark},
                                   a.output, budget, sandbox_env, image_manifest=manifest,
-                                  task_platform=SANDBOX_PLATFORM, exclude={'swebench-verified': excluded})
-        command = ['docker', 'run', '--rm', '--init', '--name', serving, '--gpus', f'"device={a.gpus}"',
-            '--network', 'host', '--ipc', 'host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864',
-            '-e', f'EVAL_CONTEXT_LIMIT={CONTEXT}', '-v', f'{checkpoint}:/eval-model:ro',
-            '--entrypoint', 'python', runtime_image, '-m', 'sglang.launch_server',
-            '--model-path', '/eval-model', '--served-model-name', 'model', '--tp', '1', '--dp-size', '4',
-            '--context-length', str(CONTEXT), '--mem-fraction-static', '0.7', '--tool-call-parser', 'glm47',
-            '--reasoning-parser', 'glm45', '--cuda-graph-max-bs-decode', '8',
-            '--cuda-graph-backend-prefill', 'disabled', '--host', '0.0.0.0', '--port', str(a.port),
-            '--attention-backend', ATTENTION_BACKEND]
+                                  task_platform=SANDBOX_PLATFORM, exclude={'swebench-verified': excluded},
+                                  engine=a.sandboxes)
+        command = serve_command(a, runtime_image, checkpoint, serving, serve_host, scratch and scratch / 'serve')
         with (a.output / 'serve.log').open('w') as stream:
-            server_proc = subprocess.Popen(command, stdout=stream, stderr=subprocess.STDOUT)
+            server_proc = subprocess.Popen(command, stdout=stream, stderr=subprocess.STDOUT,
+                                           start_new_session=a.runtime == 'apptainer')
         health_deadline = time.monotonic() + 900
         while True:
             budget.remaining()
@@ -216,13 +285,27 @@ def main():
                 stop_processes(list(jobs.values()), budget)
             except Exception as error:
                 cleanup_errors.append(str(error))
-            if server_proc is not None:
+            if server_proc is not None and a.runtime == 'apptainer':
+                try:  # the container is the server's own process group (start_new_session)
+                    os.killpg(server_proc.pid, signal.SIGTERM)
+                    try:
+                        server_proc.wait(timeout=budget.remaining(10, cleanup=True))
+                    except subprocess.TimeoutExpired:
+                        os.killpg(server_proc.pid, signal.SIGKILL)
+                        server_proc.wait(timeout=budget.remaining(2, cleanup=True))
+                except ProcessLookupError:
+                    pass
+                except Exception as error:
+                    cleanup_errors.append(str(error))
+            elif server_proc is not None:
                 try:
                     budget.run(['docker', 'rm', '-f', serving], cap=10, cleanup=True,
                                capture_output=True, check=True)
                     server_proc.wait(timeout=budget.remaining(2, cleanup=True))
                 except Exception as error:
                     cleanup_errors.append(str(error))
+            if scratch is not None:
+                shutil.rmtree(scratch, ignore_errors=True)
             for name in audit_containers:
                 try:
                     removed = budget.run(['docker', 'rm', '-f', name], cap=5, cleanup=True,
@@ -233,7 +316,7 @@ def main():
                     cleanup_errors.append(str(error))
             job_dirs = [a.output / suite / 'trials' / suite for suite in jobs]
             try:
-                cleanup_sandboxes([path for path in job_dirs if path.is_dir()], budget, sandbox_env)
+                cleanup_sandboxes([path for path in job_dirs if path.is_dir()], budget, sandbox_env, a.sandboxes)
             except Exception as error:
                 cleanup_errors.append(str(error))
             summary['evaluation_elapsed_seconds'] = time.monotonic() - budget.start

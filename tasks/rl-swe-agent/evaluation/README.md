@@ -40,7 +40,8 @@ host (paths, GPUs, addresses, image tags).
 ## Requirements
 
 All paths are relative to the repository root; run everything on the GB300 (arm64) host with Docker and the NVIDIA
-container runtime. The task README's preparation steps provide:
+container runtime, or with Apptainer and rootless podman (see the options below). The task README's preparation steps
+provide:
 
 - the GLM-4.7-Flash weights in `tasks/rl-swe-agent/artifacts/GLM-4.7-Flash` and the prepared split in
   `tasks/rl-swe-agent/data` (`download_artifacts.py`, `prepare_inputs.py`);
@@ -76,9 +77,17 @@ python3 tasks/rl-swe-agent/evaluation/score.py TRIAL_DIR EVAL_OUT --integrity RU
   `--dev-data tasks/rl-swe-agent/data`, `--swe-benchmark tasks/rl-swe-agent/.deps/harbor-datasets/datasets/swebench-verified`,
   `--harbor tasks/rl-swe-agent/.deps/harbor`, `--eval-image rl-swe-agent-eval:local`, `--gpus 0,1,2,3`. Use
   `--sandbox-docker-host` when the sandboxes run on a separate Docker endpoint.
+- On a host without Docker, `--runtime apptainer --eval-sif rl-swe-agent-eval.sif` runs the audit (without network)
+  and the policy server from the evaluation runtime's SIF (`build-apptainer.sh`; `--scratch` names local disk for the
+  server's `/tmp`), and `--sandboxes podman` runs the task sandboxes in rootless podman (`worker/podman/`: source
+  `podman-store.sh` and load the images first). The policy server then listens on the host's loopback, and
+  `--api-host` defaults to `host.docker.internal`, at which podman's sandboxes reach it.
 - `EVAL_OUT` must be a new directory. It receives `eval-settings.json`, `export-audit.json`, `serve.log`, the copied
   and image-pinned task definitions, one Harbor job per suite (`EVAL_OUT/<suite>/trials/`) and `summary.json`.
-  The exit status is 0 for a complete evaluation, 1 otherwise and 124 when the four-hour budget ran out.
+  The exit status is 124 when the four-hour budget ran out, 0 for a complete evaluation in which no agent failed, and
+  1 otherwise. A complete evaluation in which some agents failed (a timeout, an exhausted context) also exits 1 but
+  still counts: `summary.json` then has `complete: true` and a `macro_resolved_rate`, and `score.py` counts those
+  trials as unresolved.
 - `TRIAL_DIR` is any existing directory, for example `RUN_DIR`. `score.py` writes the final reward to
   `TRIAL_DIR/verifier/reward.json`, with the per-suite counts in `reward_metadata.json`. The reward is 0 unless
   `RUN_DIR/reports/judge.json` exists and its verdict is PASS. `RUN_DIR/reports/reward.json` keeps the failure value
@@ -92,4 +101,4 @@ python3 tasks/rl-swe-agent/evaluation/score.py TRIAL_DIR EVAL_OUT --integrity RU
 | `suites.py`, `suites.lock.json` | suite sources and pins, image resolution, the shared deadline, trial accounting and sandbox cleanup |
 | `score.py` | the final reward from `summary.json` and the integrity verdict |
 | `swe-exclusions.json`, `swe-subset.json`, `make_swe_subset.py` | the SWE-bench Verified selection |
-| `Dockerfile`, `patches/sglang-context-clip.patch` | the evaluation runtime image |
+| `Dockerfile`, `apptainer.def`, `build-apptainer.sh`, `patches/sglang-context-clip.patch` | the evaluation runtime image, for Docker and for Apptainer |

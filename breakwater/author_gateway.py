@@ -18,6 +18,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import socketserver
 from http.client import HTTPException, IncompleteRead
 
 MODEL = os.environ.get("AUTHOR_MODEL", "")
@@ -412,6 +413,17 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
 
 
+class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    """The Apptainer backend's listener: a unix socket in a directory no sandbox can see, reached only through
+    the relay in the author sandbox's network namespace."""
+    request_queue_size = 128
+    daemon_threads = True
+
+    def get_request(self):
+        connection, _ = super().get_request()
+        return connection, ('unix', 0)
+
+
 def main():
     if not MODEL or not KEY or AUTH not in ("bearer", "anthropic") or PROTOCOL not in ('messages', 'responses'):
         raise SystemExit("Author gateway requires a fixed model, upstream key and valid auth mode")
@@ -423,7 +435,12 @@ def main():
     Path(LOG).parent.mkdir(parents=True, exist_ok=True)
     install_shutdown_handler()
     audit({"event": "gateway_started", "model": MODEL, "protocol": PROTOCOL})
-    Server(("0.0.0.0", int(os.environ.get("PORT", "8001"))), Handler).serve_forever()
+    if os.environ.get('AUTHOR_GATEWAY_SOCKET'):
+        server = UnixServer(os.environ['AUTHOR_GATEWAY_SOCKET'], Handler)
+        os.chmod(os.environ['AUTHOR_GATEWAY_SOCKET'], 0o600)
+        server.serve_forever()
+    else:
+        Server(("0.0.0.0", int(os.environ.get("PORT", "8001"))), Handler).serve_forever()
 
 
 if __name__ == "__main__":

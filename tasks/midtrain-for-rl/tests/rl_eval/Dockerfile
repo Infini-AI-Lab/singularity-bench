@@ -21,13 +21,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential ninja-build cmake python3-dev python3-venv \
     libnuma-dev libz3-dev curl ca-certificates iptables numactl pciutils procps ripgrep wget \
     && rm -rf /var/lib/apt/lists/*
+# The pinned ARM64 base already fails pip check (nixl's unconditional nixl-cu12, moviepy's pillow<12, the
+# sbsa-tagged cuSPARSELt wheel). Record it; the final check below rejects any conflict this recipe adds.
+RUN python3 -m pip check > /opt/base-pip-check.txt || true
 
-# Do not let dependency resolution replace the image's CUDA/Torch kernel stack.
+# Do not let dependency resolution replace the image's CUDA/Torch kernel stack. sglang pins openai exactly;
+# unconstrained, openai-agents would upgrade it.
 RUN python3 - <<'PY'
 import importlib.metadata as m
 names = ('torch', 'torchvision', 'torchaudio', 'triton', 'sglang',
          'sgl-kernel', 'sglang-kernel', 'flashinfer-python', 'flashinfer-cubin',
-         'flashinfer-jit-cache', 'transformers', 'tilelang', 'nvidia-cutlass-dsl')
+         'flashinfer-jit-cache', 'transformers', 'tilelang', 'nvidia-cutlass-dsl',
+         'openai')
 with open('/opt/runtime-constraints.txt', 'w') as out:
     for name in names:
         try: out.write(f'{name}=={m.version(name)}\n')
@@ -60,11 +65,14 @@ RUN git clone https://github.com/NVIDIA/Megatron-LM.git /opt/Megatron-LM \
     && git apply --check /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron-sglang-aligned.patch \
     && git apply /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron-sglang-aligned.patch \
     && python3 -m pip install --no-deps -e .
-# Use the upstream ARM64 router, not Slime's x86-only custom router wheel.
+# Use the upstream ARM64 router, not Slime's x86-only custom router wheel. NumPy 1.26.4 also needs the base's cupy
+# and tifffile at releases that accept it; openai-agents 0.4.2 is the newest release that accepts sglang's
+# openai 2.6.1.
 RUN python3 -m pip install --ignore-installed 'PyJWT>=2.8.0' \
     && python3 -m pip install -r vendor/slime/requirements.txt \
     'ray[default]==2.58.0' sglang-router==0.3.2 psutil \
-    'numpy==1.26.4' 'scipy==1.17.1' -r requirements-midtrain.txt \
+    'numpy==1.26.4' 'scipy==1.17.1' 'cupy-cuda13x==13.6.0' 'tifffile==2026.3.3' \
+    'openai-agents==0.4.2' -r requirements-midtrain.txt \
     && python3 -m pip install --no-deps -e vendor/slime
 ENV PYTHONPATH=/opt/midtrain-rl:/opt/midtrain-rl/vendor/slime:/opt/Megatron-LM
 # Keep imported source usable by the unprivileged agent and remove upstream agent hooks.
@@ -72,7 +80,10 @@ RUN rm -rf /opt/Megatron-LM/.agents /opt/Megatron-LM/.claude /opt/Megatron-LM/.c
     && find /opt/Megatron-LM \( -name AGENTS.md -o -name CLAUDE.md \) -delete \
     && make -C /opt/Megatron-LM/megatron/core/datasets \
     && python3 -c 'from megatron.core.datasets import helpers_cpp' \
-    && python3 -m pip check \
+    && { python3 -m pip check > /tmp/pip-check.txt || true; } \
+    && if grep -vxF -e 'No broken requirements found.' -f /opt/base-pip-check.txt /tmp/pip-check.txt; then \
+         echo 'pip check: new conflicts above; base image conflicts are in /opt/base-pip-check.txt' >&2; exit 1; fi \
+    && rm /tmp/pip-check.txt \
     && python3 check_runtime.py --image-only \
     && python3 vendor/slime/train.py --help > /opt/slime-help.txt \
     && python3 -m pip freeze > /opt/training-packages.txt

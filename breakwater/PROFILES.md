@@ -17,16 +17,19 @@ Native subagents are off: Claude Code gets no `Agent` tool and Codex runs with `
 | Process | Identity | Allowed model connection | Credentials |
 | --- | --- | --- | --- |
 | Author CLI and Claude Code's built-in file tools | `author`, UID 1100 | `author-gateway:8001` | dummy local key only |
-| Every command the agent runs, including background commands | `worker`, UID 1101 | task-policy endpoints; `gateway:8000` only in coding-agent-harness | none |
+| Every command the agent runs, including background commands | `worker`, UID 1101 | the authoring plan's services and endpoints (the task's model-access gateway, its declared endpoints) | none |
 | Author gateway | separate container | the configured provider, assigned model only | author provider key |
-| Development gateway (coding-agent-harness) | separate container | two chat models and one embedding model | development provider key |
+| Development gateway (a task with `model_access`) | separate container | the task's declared chat models, and its embedding model if it declares one | development provider key |
 
-At start-up the root-only bootstrap ([author/bootstrap.py](author/bootstrap.py)) resolves the gateway addresses,
-checks their health and configuration (model and protocol), and installs exact UID/destination/port firewall rules.
-Each task's `environment/agent-policy.json` declares its workspace, writable roots, local-service needs and optional
-remote fleet endpoints. There is no Docker-subnet, general DNS or provider-host exception; initialization errors stop
-the container, and the CLI refuses to start without the bootstrap's ready marker. Provider credentials never enter the
-agent container.
+At start-up the root-only bootstrap ([author/bootstrap.py](author/bootstrap.py)) reads the launcher's authoring plan
+(`BREAKWATER_AUTHORING_PLAN`: the services and endpoints the agent's commands may reach, ports refused first, host
+names, reply-only inbound ports and the task's environment for the commands), resolves the gateway and service
+addresses, checks their health and configuration (model and protocol), refuses an endpoint that resolves to one of
+them, installs exact UID/destination/port firewall rules and returns the plan's digest, which the launcher checks.
+Each task's `environment/agent-policy.json` declares only its workspace, writable roots and whether its commands may
+use the container's own addresses. There is no Docker-subnet, general DNS or provider-host exception; initialization
+errors stop the container, and the CLI refuses to start without the bootstrap's ready marker. Provider credentials
+never enter the agent container.
 
 The fixed [`author-exec`](author/author-exec.c) entrypoint starts the CLI as `author`. Its Python interpreter is
 resolved at build time, checked for root ownership and non-writable parent directories, and compiled into the
@@ -73,8 +76,8 @@ carry client tool definitions, supported fields and inline content; server tools
 configuration, remote media references and unknown beta headers are rejected. Responses requests may carry
 client-defined tools; provider-hosted tools, stored responses and cross-response continuation are rejected. Streaming
 is relayed, and every request and response is journaled outside the agent's reach. Worker processes cannot reach this
-gateway or the provider. The coding-agent-harness task's development models use a separate gateway
-([dev_gateway.py](dev_gateway.py)) that accepts only `chat`, `chat-b` and the fixed embedding model.
+gateway or the provider. A task's development models use a separate gateway ([dev_gateway.py](dev_gateway.py)) that
+accepts only the chat aliases the task declares and, if it declares one, its embedding model.
 
 ## Validation
 

@@ -10,7 +10,9 @@ the private traces.
 Evidence roles. `external/gateway` is the authoritative author-model journal. The observer
 indexes record worker exec, file-mutation and probe events during authoring and during every
 graded cell, where the plane ran as the worker from a fresh copy of the sealed `/app`.
-`external/fleet-inference/` holds the private fleet worker journals for this run. Each request
+`external/task/fleet-inference/` holds the private fleet worker journals for this run, which the
+task's host hooks collected after both execution stages ended (`external/task/fleet-inference.json`
+and `external/task/fleet-manifests.json` describe the collection). Each request
 is recorded before inference and each response frame before forwarding. Agent-stage requests
 are shown in full; graded traffic is shown one line per request. The mechanical report lists
 structurally verified journals and any incomplete worker lifecycles. `evaluation/raw/cluster`

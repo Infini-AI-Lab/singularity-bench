@@ -1,10 +1,10 @@
 """Grading helpers for midtrain-for-rl, loaded by Breakwater from this file.
 
-Breakwater's evaluation stage (breakwater/intermediate.py, kind ``midtrain``) runs
+Breakwater's evaluation stage (``evaluate`` in breakwater_task.py) runs
 ``rl_eval/run.sh`` on the sealed ``out/final_checkpoint`` with ``runtime_env()``:
 the fixed five-hour GRPO stage, then the post-RL evaluation. It keeps bounded log
-tails with ``tail()``. The evaluation stage and the verifier
-(breakwater/score_workload.py) both apply ``post_rl_reward()``, the acceptance rule
+tails with ``tail()``. The evaluation stage and the verifier (``score`` in
+breakwater_task.py) both apply ``post_rl_reward()``, the acceptance rule
 for the score. Nothing here reads the agent workspace or imports submitted code.
 The reward is (AMC avg@4 + HumanEval+ accuracy + GPQA-Diamond accuracy) / 3.
 """

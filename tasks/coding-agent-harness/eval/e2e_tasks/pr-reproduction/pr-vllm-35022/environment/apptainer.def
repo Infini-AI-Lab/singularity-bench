@@ -1,0 +1,140 @@
+# The pr-vllm-35022 task runtime (a downstream task of the coding-agent-harness grid) as an Apptainer image: a
+# step-for-step translation of environment/Dockerfile (same base image, pins and steps) for hosts without Docker.
+# Build it with environment/build-apptainer.sh; the Docker build takes nothing from its context. vLLM is staged at the
+# commit before PR #35022, editable over that commit's precompiled kernels, with TinyLlama-1.1B-Chat in the Hugging
+# Face cache. The base is the CUDA runtime image, with the CUDA compiler matching torch's CUDA added for FlashInfer
+# (below). Apptainer pulls the base image for the build host's architecture; GB300 hosts are arm64.
+Bootstrap: docker
+From: nvidia/cuda:12.8.1-runtime-ubuntu24.04
+
+# The Dockerfile's build arguments, at its defaults (apptainer build --build-arg NAME=VALUE overrides one): the
+# reference commit whose dependencies are installed, and the task commit (the parent of the PR).
+%arguments
+    VLLM_REF=635c38338afe132f9555ebf4a7c8ac7dfb05b2a0
+    VLLM_COMMIT=fbc3a1907aeb6beff59461e535045f17ac14306e
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export PATH="/opt/venv/bin:/root/.local/bin:${PATH}"
+    export UV_NO_CACHE=1
+    export VLLM_USE_PRECOMPILED=1
+    # The container is offline: the baked model resolves from the cache, never the Hub.
+    export HF_HUB_OFFLINE=1
+    export TRANSFORMERS_OFFLINE=1
+    # vLLM's default FlashInfer sampler would compile one more kernel at first use: use the Triton/torch sampler.
+    export VLLM_USE_FLASHINFER_SAMPLER=0
+
+%post -c /bin/bash
+    set -euo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    # %post's /tmp is the build host's: temporary files (uv's uncached downloads and build environments, several GB)
+    # go to a directory in the image instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    apt-get -o APT::Sandbox::User=root update
+    # An unprivileged build without /etc/subuid ranges maps only the calling user (as root), and dpkg cannot give
+    # package files other owners ("error setting ownership ... Invalid argument"). There, package installs run under
+    # fakeroot, which records those ownership changes instead of making them (every file stays root's); it is removed
+    # at the end of %post.
+    probe=$(mktemp /root/.chown-probe.XXXXXX)
+    if chown 1:1 "${probe}" 2>/dev/null; then fakeroot=""; else
+        apt-get -o APT::Sandbox::User=root install -y --no-install-recommends fakeroot
+        fakeroot="env FAKEROOTDONTTRYCHOWN=1 fakeroot"
+        echo "root-mapped build: package installs run under fakeroot"
+    fi
+    rm -f "${probe}"
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        python3 python3-dev git curl ca-certificates build-essential \
+        patch iptables iproute2 procps
+    rm -rf /var/lib/apt/lists/*
+
+    # uv installs to /root/.local/bin: %post runs with HOME=/root in the image, as a Docker build does.
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="/opt/venv/bin:/root/.local/bin:${PATH}"
+    # Don't bake uv's ~8 GB download cache into the image.
+    export UV_NO_CACHE=1
+
+    # Install torch and every vLLM dependency once, at a fixed reference commit. The task layer below reinstalls vLLM at
+    # its own commit with --no-deps, so only vLLM's package and that commit's precompiled kernels differ.
+    # --torch-backend=auto picks the PyTorch wheels from the build host's NVIDIA driver, and CPU-only wheels without
+    # one: build on a GPU node.
+    export VLLM_REF="{{ VLLM_REF }}"
+    git clone --filter=blob:none https://github.com/vllm-project/vllm.git /opt/vllm-ref
+    cd /opt/vllm-ref
+    git checkout ${VLLM_REF}
+    cd /
+    uv venv /opt/venv --python 3.12
+    export VLLM_USE_PRECOMPILED=1
+    cd /opt/vllm-ref
+    VLLM_USE_PRECOMPILED=1 VLLM_PRECOMPILED_WHEEL_COMMIT=${VLLM_REF} \
+        uv pip install --python /opt/venv/bin/python -e . --torch-backend=auto
+    uv pip install --python /opt/venv/bin/python pytest gguf
+    /opt/venv/bin/python -c "import vllm; print('base vLLM', vllm.__version__)"
+    cd /
+
+    # vLLM's attention on Blackwell (the sm_100 family, which includes the GB300's sm_103) is FlashInfer's, whose kernel
+    # launchers compile with nvcc at first use; vLLM's own images ship the compiler for it. Install the CUDA toolkit
+    # matching torch's CUDA (13.0 on GB300) and make it /usr/local/cuda. CUDA 12.8's compiler cannot target sm_103.
+    TORCH_CUDA=$(/opt/venv/bin/python -c "import torch; print(torch.version.cuda or '')")
+    if [ -n "${TORCH_CUDA}" ]; then
+        apt-get -o APT::Sandbox::User=root update
+        ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+            "cuda-toolkit-${TORCH_CUDA//./-}"
+        rm -rf /var/lib/apt/lists/*
+        ln -sfn "/usr/local/cuda-${TORCH_CUDA}" /usr/local/cuda
+        echo "torch CUDA ${TORCH_CUDA} -> $(/usr/local/cuda/bin/nvcc --version | tail -1)"
+    fi
+
+    # The task layer: vLLM at the commit before the PR. The feature is pure Python (the beam-search loop and a params
+    # field), so the agent's edits under /app/vllm/vllm/ are live without a CUDA rebuild.
+    export VLLM_COMMIT="{{ VLLM_COMMIT }}"
+    git clone --filter=blob:none https://github.com/vllm-project/vllm.git /app/vllm
+    cd /app/vllm
+    git checkout ${VLLM_COMMIT}
+    VLLM_USE_PRECOMPILED=1 VLLM_PRECOMPILED_WHEEL_COMMIT=${VLLM_COMMIT} \
+        uv pip install --python /opt/venv/bin/python -e . --no-deps
+    /opt/venv/bin/python -c "import vllm; print('task vLLM', vllm.__version__)"
+    cd /
+
+    # Bake the test model, safetensors only, into the image's Hugging Face cache (/root/.cache/huggingface, as in the
+    # Docker build): the graded test and the agent's own iteration run fully offline.
+    /opt/venv/bin/python -c "from huggingface_hub import snapshot_download; \
+        p = snapshot_download('TinyLlama/TinyLlama-1.1B-Chat-v1.0', \
+            ignore_patterns=['*.bin', '*.pth', '*.pt', '*.gguf', '*.onnx']); \
+        print('baked model at', p)"
+
+    # gguf: the task commit's transformers_utils.config imports it eagerly. xgrammar and jsonschema come with the base.
+    uv pip install --python /opt/venv/bin/python gguf
+    /opt/venv/bin/python -c "import gguf, jsonschema, xgrammar; print('deps ok: gguf jsonschema xgrammar')"
+
+    # From here on the container is offline: resolve the baked model from the cache, never the Hub.
+    export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+    # vLLM's default FlashInfer sampler would compile one more kernel at first use: use the Triton/torch sampler, for
+    # the agent's iteration and the grader alike. A sampler backend choice, unrelated to the feature.
+    export VLLM_USE_FLASHINFER_SAMPLER=0
+
+    # Drop .git so the agent cannot check out the fix commit or read history.
+    rm -rf /app/vllm/.git
+
+    # Drop the reference checkout: a full checkout with its history at a commit that can be later than the task commit,
+    # so it can hold the fixed source of the very file the agent is asked to change. Nothing needs it at run time (its
+    # dependencies are ordinary wheels in /opt/venv, and the task layer's editable /app/vllm replaced its editable
+    # vllm). The check fails the build, not a grade.
+    rm -rf /opt/vllm-ref
+    /opt/venv/bin/python -c "import vllm, os; assert not os.path.exists('/opt/vllm-ref'); \
+        print('reference checkout dropped; vLLM still importable from', os.path.dirname(vllm.__file__))"
+
+    # Strip apt sources.
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true
+    rm -rf /opt/build-tmp
+
+    # The harness grid's apptainer_cell.py seeds the harness's workspace from the image's /app/vllm and starts
+    # commands there (Apptainer has no WORKDIR).
+    mkdir -p /app/vllm
+    cd /app/vllm
+
+    # The build's own fakeroot (above), when it needed one, is not part of the image.
+    if [ -n "${fakeroot}" ]; then dpkg --purge fakeroot libfakeroot; fi

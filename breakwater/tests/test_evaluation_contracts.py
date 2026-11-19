@@ -1,6 +1,5 @@
-"""Launch, evidence and review contracts: the authoring deadline, container limits, review
-volume, the rule-violation reward, workspace links, the shadow policy and the cluster
-submission rules. No Docker daemon, GPU, model or API key is used.
+"""Launch, evidence and review contracts: the authoring deadline, container limits, review volume, the rule-violation
+reward, workspace links and the shadow policy. No Docker daemon, GPU, model or API key is used.
 """
 import copy
 import hashlib
@@ -22,13 +21,16 @@ from unittest.mock import patch
 import zipfile
 
 SECURITY = Path(__file__).resolve().parents[1]
-REPO = SECURITY.parent / 'tasks'
+EXAMPLE = SECURITY.parent / 'examples' / 'word-count'
 sys.path[:0] = [str(SECURITY), str(SECURITY / 'tests')]
 from contract import ContractError, RulesViolation
 import run as controller
+import spec
 import verifier
 from reconcile import compare, native_calls
 from test_security import inspected, native
+
+
 
 
 def events(*rows):
@@ -36,16 +38,14 @@ def events(*rows):
 
 
 def write_config(folder, **changes):
-    """A valid breakwater.json (the harness task's) with ``changes`` applied; None removes a key."""
-    config = json.loads((REPO / 'coding-agent-harness/breakwater.json').read_text())
+    """The example task's declared settings (spec.read) with ``changes`` applied; None removes a key."""
+    config = spec.read(EXAMPLE)
     for key, value in changes.items():
         if value is None:
             config.pop(key, None)
         else:
             config[key] = value
-    path = Path(folder) / 'breakwater.json'
-    path.write_text(json.dumps(config))
-    return path
+    return config
 
 
 FAKE_DOCKER = '''import os, sys
@@ -177,19 +177,19 @@ class AuthoringDeadlineTests(unittest.TestCase):
 
     def test_policy_is_validated_and_sealed(self):
         with tempfile.TemporaryDirectory() as folder:
-            self.assertEqual(controller.load_config(write_config(folder, agent_deadline=None))['agent_deadline'], 'fail')
+            self.assertEqual(spec.resolve(write_config(folder, agent_deadline=None))['agent_deadline'], 'fail')
             for value in ('evaluate', 'fail'):
-                self.assertEqual(controller.load_config(write_config(folder, agent_deadline=value))['agent_deadline'], value)
+                self.assertEqual(spec.resolve(write_config(folder, agent_deadline=value))['agent_deadline'], value)
             for value in ('stop', True, 1):
                 with self.subTest(value=value), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, agent_deadline=value))
+                    spec.resolve(write_config(folder, agent_deadline=value))
         self.assertIn('agent_deadline', controller.SEALED_PIPELINE)
 
 
 class ResourceLimitTests(unittest.TestCase):
     def test_memlock_stack_pids_and_cpuset_become_docker_limits(self):
         with tempfile.TemporaryDirectory() as folder:
-            config = controller.load_config(write_config(folder, resources={
+            config = spec.resolve(write_config(folder, resources={
                 'cpus': 16, 'cpuset': '0-7,16-23', 'memory_mb': 1024, 'nofile': 4096, 'memlock': -1,
                 'stack': 67108864, 'pids': 512, 'shm_size': '64g'}))
             self.assertEqual(controller.resource_options(config), [
@@ -199,7 +199,7 @@ class ResourceLimitTests(unittest.TestCase):
 
     def test_agent_resources_override_only_the_authoring_container(self):
         with tempfile.TemporaryDirectory() as folder:
-            config = controller.load_config(write_config(folder, resources={'cpus': 16, 'memory_mb': 40960, 'nofile': 65536},
+            config = spec.resolve(write_config(folder, resources={'cpus': 16, 'memory_mb': 40960, 'nofile': 65536},
                                                          agent_resources={'cpus': 8, 'memory_mb': 32768, 'pids': 512}))
             self.assertEqual(controller.resource_options(config),
                              ['--cpus', '16', '--memory', '40960m', '--memory-swap', '40960m',
@@ -214,10 +214,10 @@ class ResourceLimitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             for resources in bad:
                 with self.subTest(resources=resources), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, resources=resources))
+                    spec.resolve(write_config(folder, resources=resources))
             for agent in ({'gpus': 1}, {'cpus': 4, 'cpuset': '0-1'}, []):
                 with self.subTest(agent=agent), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, agent_resources=agent))
+                    spec.resolve(write_config(folder, agent_resources=agent))
 
 
 class ReviewVolumeTests(unittest.TestCase):
@@ -286,7 +286,7 @@ class ReviewVolumeTests(unittest.TestCase):
         broken.write_bytes(b'\x80\x04\x95\xff\xff\xff\xff\xff\xff\xff\x7f' + b'\x00' * 200000)
         self.assertEqual(len(self.packets(broken)), 4)
 
-    def test_recomputed_evaluation_outputs_are_summarized_by_kind(self):
+    def test_recomputed_evaluation_outputs_are_summarized(self):
         import review_index
         external, evaluation = self.root / 'external', self.root / 'evaluation'
         (evaluation / 'raw').mkdir(parents=True)
@@ -297,19 +297,19 @@ class ReviewVolumeTests(unittest.TestCase):
                                                                                for i in range(560)]))
         (evaluation / 'raw/diagnostics.json').write_text(json.dumps({'reward': 1.5}))
         roots = {'external': external, 'evaluation': evaluation}
-        packets = list(review_index.packets(roots, {}, config={'kind': 'serving'}))
+        packets = list(review_index.packets(roots, {}, config={'recomputed': ['raw/traffic-pass-*.json', 'raw/accuracy.generations.json', 'raw/traffic_records.json']}))
         summaries = {reference: json.loads(body) for reference, body in packets if reference.endswith('[recomputed-output]')}
         self.assertEqual({value['file']: value['rows'] for value in summaries.values()},
                          {'raw/traffic-pass-0.json': 300, 'raw/accuracy.generations.json': 560})
         size = (evaluation / 'raw/diagnostics.json').stat().st_size
         self.assertIn(f'evaluation/raw/diagnostics.json[bytes 0:{size}]', [reference for reference, _ in packets])
-        # Another kind's outputs are reviewed in full.
-        full = list(review_index.packets(roots, {}, config={'kind': 'harness'}))
+        # A task that recomputes none of them has them reviewed in full.
+        full = list(review_index.packets(roots, {}, config={}))
         self.assertGreater(len(full), len(packets))
         (evaluation / 'raw/rl/evaluation').mkdir(parents=True)
         (evaluation / 'raw/rl/evaluation/amc.generations.jsonl').write_text('{"index": 0}\n{"index": 1}\n')
-        midtrain = list(review_index.packets(roots, {}, config={'kind': 'midtrain'}))
-        self.assertEqual([json.loads(body)['rows'] for reference, body in midtrain
+        nested = list(review_index.packets(roots, {}, config={'recomputed': ['raw/rl/evaluation/*.generations.jsonl']}))
+        self.assertEqual([json.loads(body)['rows'] for reference, body in nested
                           if reference.endswith('amc.generations.jsonl[recomputed-output]')], [2])
 
     def test_workspace_view_lists_links_and_applies_metadata_paths(self):
@@ -356,7 +356,7 @@ class ReviewVolumeTests(unittest.TestCase):
 
     def test_concurrent_retries_keep_every_rejected_attempt(self):
         attempts = {}
-        def judge_call(prompt_path, name, remaining):
+        def judge_call(prompt_path, name, remaining, check=None, effort='medium'):
             attempts[name] = attempts.get(name, 0) + 1
             if attempts[name] == 1:
                 raise ValueError('malformed reply')
@@ -374,8 +374,10 @@ class RuleViolationRewardTests(unittest.TestCase):
     def run_verifier(self, config):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
-            launch = {'external_sha256': 'a' * 64, 'identity': {'task': config['task']}}
+            launch = {'external_sha256': 'a' * 64, 'identity': {'task': config['task']},
+                      'framework_revision': verifier.FRAMEWORK_REVISION, 'tests_sha256': 't' * 64}
             with patch.object(verifier, 'REPORTS', directory), patch.object(verifier, 'read_json', return_value=config), \
+                 patch.object(verifier, 'tests_digest', return_value='t' * 64), \
                  patch.object(verifier, 'verify_seal', side_effect=[launch, {}]), \
                  patch.object(verifier, 'check_launch', side_effect=RulesViolation('a protected package was replaced')), \
                  patch.object(verifier.os, 'geteuid', return_value=1102), patch.dict(os.environ, {'BREAKWATER_STAGE': 'verifier'}), \
@@ -386,19 +388,19 @@ class RuleViolationRewardTests(unittest.TestCase):
                     json.loads((directory / 'rule-violation.json').read_text()))
 
     def test_task_declared_violation_reward_is_written(self):
-        reward, record = self.run_verifier({'failure_reward': -1.0, 'rule_violation_reward': -1.0, 'task': 'open-ended-nano-gpt'})
+        reward, record = self.run_verifier({'failure_reward': -1.0, 'rule_violation_reward': -1.0, 'task': 'example'})
         self.assertEqual(reward, {'reward': -1.0})
         self.assertEqual((record['reward'], record['reason'], record['judge_skipped']), (-1.0, 'violation of rules', True))
-        reward, record = self.run_verifier({'failure_reward': -1.0, 'task': 'open-ended-nano-gpt'})
+        reward, record = self.run_verifier({'failure_reward': -1.0, 'task': 'example'})
         self.assertEqual((reward, record['reward']), ({'reward': 0.0}, 0.0))
 
-    def test_violation_reward_is_validated_and_nano_declares_minus_one(self):
+    def test_violation_reward_is_validated_and_sealed(self):
         with tempfile.TemporaryDirectory() as folder:
             for value in (True, '0', [0]):
                 with self.subTest(value=value), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, rule_violation_reward=value))
-            self.assertEqual(controller.load_config(write_config(folder))['rule_violation_reward'], 0.0)
-        self.assertEqual(controller.load_config(REPO / 'open-ended-nano-gpt/breakwater.json')['rule_violation_reward'], -1.0)
+                    spec.resolve(write_config(folder, rule_violation_reward=value))
+            self.assertEqual(spec.resolve(write_config(folder, rule_violation_reward=None))['rule_violation_reward'], 0.0)
+            self.assertEqual(spec.resolve(write_config(folder, rule_violation_reward=-1.0))['rule_violation_reward'], -1.0)
         self.assertIn('rule_violation_reward', controller.SEALED_PIPELINE)
 
 
@@ -439,54 +441,48 @@ class WorkspaceLinkTests(unittest.TestCase):
 
     def test_task_seeding_anchors_leading_slash_excludes_at_the_task_root(self):
         task = self.root / 'task'
-        for name in ('README.md', 'nanoGPT/README.md', 'nanoGPT/train.py', 'out/ckpt.bin', 'sub/out/log.txt',
-                     'tests/test.sh', 'docs/README.md', 'breakwater.json', 'bindings.example.json'):
+        for name in ('README.md', 'model/README.md', 'model/train.py', 'out/ckpt.bin', 'sub/out/log.txt',
+                     'tests/test.sh', 'docs/README.md', 'task.toml'):
             (task / name).parent.mkdir(parents=True, exist_ok=True)
             (task / name).write_text(name)
         with patch.object(controller, 'TASK', task):
             controller.seed_workspace({'workspace_source': 'task', 'workspace_excludes': ['/README.md', 'out', '/docs']},
                                       None, self.root / 'seeded')
         from contract import inventory
-        self.assertEqual(sorted(inventory(self.root / 'seeded')), ['nanoGPT/README.md', 'nanoGPT/train.py'])
-
-    def test_sandbox_worker_endpoint_is_validated(self):
-        rl = controller.load_config(REPO / 'rl-swe-agent/breakwater.json')
-        self.assertEqual(rl['sandbox_worker'], {'port': 11000, 'session_ports': '30000-30015'})
-        with tempfile.TemporaryDirectory() as folder:
-            self.assertIsNone(controller.load_config(write_config(folder))['sandbox_worker'])
-            for value in ({'port': 11000}, {'port': '11000', 'session_ports': '30000-30015'},
-                          {'port': 11000, 'session_ports': '80-90'}, {'port': 11000, 'session_ports': '30000-31000'},
-                          {'port': 11000, 'session_ports': '30010-30000'}, {'port': 0, 'session_ports': '30000-30001'},
-                          {'port': 11000, 'session_ports': '30000-30015', 'host': '0.0.0.0'}, [11000]):
-                with self.subTest(value=value), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, sandbox_worker=value))
+        self.assertEqual(sorted(inventory(self.root / 'seeded')), ['model/README.md', 'model/train.py'])
 
     def test_dataset_manifest_stays_inside_the_workspace(self):
-        midtrain = controller.load_config(REPO / 'midtrain-for-rl/breakwater.json')
-        self.assertEqual((midtrain['dataset_manifest'], midtrain['dataset_roots']),
-                         ('/app/out/training_dataset.json', ['/app/out/processed_dataset']))
         with tempfile.TemporaryDirectory() as folder:
-            self.assertIsNone(controller.load_config(write_config(folder))['dataset_manifest'])
+            self.assertIsNone(spec.resolve(write_config(folder))['dataset_manifest'])
+            declared = spec.resolve(write_config(folder, dataset_manifest='/app/out/dataset.json',
+                                                 dataset_roots=['/app/out/processed']))
+            self.assertEqual((declared['dataset_manifest'], declared['dataset_roots']),
+                             ('/app/out/dataset.json', ['/app/out/processed']))
             for changes in ({'dataset_manifest': '/etc/dataset.json'}, {'dataset_roots': ['/app/out']},
                             {'dataset_manifest': '/app/out/d.json', 'dataset_roots': ['/tmp/data']},
                             {'dataset_manifest': '/app/out/d.json', 'dataset_roots': '/app/out'}):
                 with self.subTest(changes=changes), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, **changes))
+                    spec.resolve(write_config(folder, **changes))
 
     def test_exclude_syntax_is_validated(self):
         with tempfile.TemporaryDirectory() as folder:
             for value in (['a/b'], ['/'], ['//x'], ['/a/../b'], [''], 'out'):
                 with self.subTest(value=value), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, workspace_source='task', workspace_excludes=value))
-            config = controller.load_config(write_config(folder, workspace_source='task',
+                    spec.resolve(write_config(folder, workspace_source='task', workspace_excludes=value))
+            config = spec.resolve(write_config(folder, workspace_source='task',
                                                          workspace_excludes=['/README.md', '/a/b', 'out']))
             self.assertEqual(config['workspace_excludes'], ['/README.md', '/a/b', 'out'])
-            controller.load_config(write_config(folder, workspace_source='image', workspace_excludes=['a/b', '/c']))
-            for value in (['/scratch'], ['a/../b'], ['spec']):
+            spec.resolve(write_config(folder, workspace_source='image', workspace_excludes=['a/b', '/c']))
+            for value in (['/scratch'], ['a/../b']):
                 with self.subTest(snapshot=value), self.assertRaises(ContractError):
-                    controller.load_config(write_config(folder, snapshot_excludes=value))
+                    spec.resolve(write_config(folder, snapshot_excludes=value))
+            # A protected path cannot be left out of the sealed snapshot, nor can anything under or above it.
+            for value in (['spec'], ['spec/rules.md'], ['']):
+                with self.subTest(protected=value), self.assertRaises(ContractError):
+                    spec.resolve(write_config(folder, protected_workspace_paths=['spec'], snapshot_excludes=value))
+            spec.resolve(write_config(folder, protected_workspace_paths=['spec'], snapshot_excludes=['specs']))
             for key in ('review_metadata_paths', 'snapshot_excludes'):
-                self.assertEqual(controller.load_config(write_config(folder, **{key: ['out/data']}))[key], ['out/data'])
+                self.assertEqual(spec.resolve(write_config(folder, **{key: ['out/data']}))[key], ['out/data'])
 
     def test_symbolic_links_are_recorded_and_skipped_but_special_files_fail(self):
         entries = [('./', 'dir', None), ('./pkg/', 'dir', None), ('./pkg/a.py', 'file', b'print(1)\n'),
@@ -523,7 +519,7 @@ class WorkspaceLinkTests(unittest.TestCase):
                              {'latest': 'pkg/a.py', 'pkg/self': '.', 'dangling': 'missing.txt', 'into-home': '/home/x'})
         target = self.root / 'app'
         target.mkdir()
-        (target / 'stale').write_text('from an earlier cell')
+        (target / 'stale').write_text('from an earlier evaluation pass')
         home = self.root / 'home'
         sealed_home = self.sealed({'.bashrc': b'export X=1\n'}, {'app': str(target)}, name='sealed-home')
         with patch.object(workers, 'SEAL_MANIFEST', 'manifest.json'):
@@ -556,7 +552,7 @@ class WorkspaceLinkTests(unittest.TestCase):
         (shared / 'cache/deep').mkdir(parents=True)
         outside.mkdir()
         (outside / 'keep').write_text('not the worker temporary area')
-        (shared / 'cache/deep/state').write_text('cell 1')
+        (shared / 'cache/deep/state').write_text('pass 1')
         (shared / 'escape').symlink_to(outside, target_is_directory=True)
         (shared / 'socketish').write_text('')
         self.assertEqual(wipe_worker_files(roots=(shared,), uid=os.getuid()), 3)
@@ -613,7 +609,7 @@ class ShadowPolicyTests(unittest.TestCase):
         import environment_guard as guard
         root = self.workspace(['fake/__init__.py', 'torch/ops.py', 'notes.md'])
         recorded = {'torch.py': 'fake/__init__.py', 'numpy': 'fake', 'torch/__init__.py': '../fake/__init__.py',
-                    'tools/sitecustomize.py': '../notes.md', 'model': '/models/GLM-5.3-Flash', 'data/latest': 'v2'}
+                    'tools/sitecustomize.py': '../notes.md', 'model': '/models/base-model', 'data/latest': 'v2'}
         self.assertEqual(guard.shadows(root, links=recorded), {
             'numpy': 'symlink:fake', 'torch.py': 'symlink:fake/__init__.py',
             'torch/__init__.py': 'symlink:../fake/__init__.py', 'torch/ops.py': hashlib.sha256(b'torch/ops.py').hexdigest(),
@@ -624,156 +620,20 @@ class ShadowPolicyTests(unittest.TestCase):
         (root / 'out' / 'torch.py').symlink_to('../notes.md')
         self.assertEqual(guard.shadows(root), {'triton': 'symlink:fake'})
         self.assertEqual(guard.shadows(root, excludes=['triton']), {})
-        midtrain = guard.shadow_policy({'packages': [], 'hooks': [], 'environments': False})
-        self.assertEqual(guard.shadows(root, midtrain, links=recorded), {})
+        empty = guard.shadow_policy({'packages': [], 'hooks': [], 'environments': False})
+        self.assertEqual(guard.shadows(root, empty, links=recorded), {})
 
     def test_task_policies_still_apply(self):
         import environment_guard as guard
         root = self.workspace(['triton.py', 'sitecustomize.py', 'pytest/__init__.py', 'lib/site-packages/x.pth',
                                'megatron/__init__.py'])
-        midtrain = guard.shadow_policy(json.loads((REPO / 'midtrain-for-rl/breakwater.json').read_text())['shadow_policy'])
-        self.assertEqual(guard.shadows(root, midtrain), {})
+        empty = guard.shadow_policy({'packages': [], 'hooks': [], 'environments': False})
+        self.assertEqual(guard.shadows(root, empty), {})
         hooks_only = guard.shadow_policy({'packages': [], 'environments': False})
         self.assertEqual(sorted(guard.shadows(root, hooks_only)), ['lib/site-packages/x.pth', 'sitecustomize.py'])
-        harness = guard.shadow_policy({'extra_packages': ['pytest']})
-        self.assertIn('pytest/__init__.py', guard.shadows(root, harness))
-        self.assertIn('megatron/__init__.py', guard.shadows(root, harness))
-
-
-class ClusterSubmissionTests(unittest.TestCase):
-    """Fleet identity and shape, the qualification rule, submission limits and per-cell isolation."""
-
-    def test_fleet_run_id_and_shape(self):
-        import cluster_fleet
-        self.assertEqual(cluster_fleet.run_id({'run_id': 'top', 'launch': {'run_id': 'old'}}), 'top')
-        self.assertEqual(cluster_fleet.run_id({'launch': {'run_id': 'old'}}), 'old')
-        self.assertIsNone(cluster_fleet.run_id({'launch': {}}))
-        fleet = json.loads((REPO / 'cluster-serverless/tests/fleet-graded.json').read_text())
-        catalogue = json.loads((REPO / 'cluster-serverless/tests/public/catalogue.json').read_text())
-        self.assertEqual(cluster_fleet.check_fleet_shape(fleet, catalogue), {'nodes': 4, 'gpus': 16})
-        public = json.loads((REPO / 'cluster-serverless/tests/fleet-graded.public.json').read_text())
-        cluster_fleet.check_fleet_shape(public, catalogue)
-        bad = {'three nodes': lambda value: value['nodes'].pop(),
-               'eight GPUs': lambda value: value['nodes'][0].update(n_gpus=8),
-               'declared shape': lambda value: value.update(gpus_per_node=8),
-               'catalogue': None}
-        for case, mutate in bad.items():
-            value, expected = copy.deepcopy(fleet), dict(catalogue)
-            if mutate is None:
-                expected['n_gpus'] = 32
-            else:
-                mutate(value)
-            with self.subTest(case=case), self.assertRaises(ContractError):
-                cluster_fleet.check_fleet_shape(value, expected)
-
-    def test_only_target_qualified_suites_are_qualified(self):
-        import score_workload
-        from test_harness_cluster import cluster_tests
-        with tempfile.TemporaryDirectory() as temporary:
-            tests = cluster_tests(temporary, qualification={'workload': 'smoke-qualified', 'catalogue': 'smoke-qualified'})
-            raw = Path(temporary) / 'raw'
-            (raw / 'cluster').mkdir(parents=True)
-            suite = json.loads((tests / 'suite-graded.json').read_text())
-            for name in ('score', 'reference', 'traceunits'):
-                sys.modules.pop(name, None)
-            sys.path.insert(0, str(tests / 'kit'))
-            import score as scorer
-            labels = [f'{name}-0' for name in scorer.CELLS]
-            measurement = {'labels': labels, 'invalid': 'invalid', 'development_only': False, 'measurement_binding': {},
-                           'repeats': 1, 'score_version': scorer.SCORE_VERSION, 'model_ids': suite['model_ids'],
-                           'trace_sha256': {case['name']: case['trace_sha256'] for case in suite['cases']},
-                           'cells': [{'label': label, 'trace': label.rsplit('-', 1)[0], 'invalid': 'invalid'}
-                                     for label in labels]}
-            (raw / 'cluster/measurement.json').write_text(json.dumps(measurement))
-            with self.assertRaises(ContractError):  # a smoke-qualified suite is a development suite
-                score_workload.cluster_score(raw, tests=tests, config={'allow_unqualified': True})
-            measurement.update(development_only=True, measurement_binding=None)
-            (raw / 'cluster/measurement.json').write_text(json.dumps(measurement))
-            self.assertEqual(score_workload.cluster_score(raw, tests=tests, config={'allow_unqualified': True}), 0.0)
-            # The sealed submission is rechecked: one over its limits must have been graded invalid.
-            submission = Path(temporary) / 'submission'
-            submission.mkdir()
-            (submission / 'run.sh').write_bytes(b'x' * 64)
-            import cluster_cells
-            with patch.object(cluster_cells, 'MAX_BYTES', 32):
-                self.assertEqual(score_workload.cluster_score(raw, tests=tests, config={'allow_unqualified': True},
-                                                              roots=[submission]), 0.0)
-                measurement.update(invalid=None)
-                (raw / 'cluster/measurement.json').write_text(json.dumps(measurement))
-                with self.assertRaises(ContractError):
-                    score_workload.cluster_score(raw, tests=tests, config={'allow_unqualified': True}, roots=[submission])
-
-    def test_submission_limits_count_every_entry_and_byte_of_both_roots(self):
-        import cluster_cells
-        from contract import seal
-        with tempfile.TemporaryDirectory() as temporary:
-            app, home = Path(temporary) / 'app', Path(temporary) / 'home'
-            (app / 'pkg').mkdir(parents=True)
-            home.mkdir()
-            (app / 'run.sh').write_bytes(b'#' * 100)
-            (app / 'pkg/a.py').write_bytes(b'#' * 100)
-            (home / 'notes').write_bytes(b'#' * 100)
-            seal(app, {'run_id': 'r'}, symlinks={'latest': 'pkg/a.py'})
-            seal(home, {'run_id': 'r'}, symlinks={})
-            self.assertIsNone(cluster_cells.submission_problem([app, home]))
-            # Entries: two roots, one directory, three files and one link.
-            with patch.object(cluster_cells, 'MAX_ENTRIES', 6):
-                self.assertIn('100000', cluster_cells.submission_problem([app, home]))
-            with patch.object(cluster_cells, 'MAX_ENTRIES', 7):
-                self.assertIsNone(cluster_cells.submission_problem([app, home]))
-            with patch.object(cluster_cells, 'MAX_BYTES', 299):
-                self.assertIn('8 GiB', cluster_cells.submission_problem([app, home]))
-            with patch.object(cluster_cells, 'MAX_BYTES', 300):
-                self.assertIsNone(cluster_cells.submission_problem([app, home]))
-
-    def test_plane_process_limit_and_driver_timeout(self):
-        import cluster_cells
-        hard = resource.getrlimit(resource.RLIMIT_NPROC)[1]
-        limit = 64 if hard == resource.RLIM_INFINITY else min(64, hard)
-        result = subprocess.run([sys.executable, '-I', '-B', '-c', cluster_cells.NPROC_LIMIT, str(limit),
-                                 sys.executable, '-I', '-B', '-c',
-                                 'import resource;print(*resource.getrlimit(resource.RLIMIT_NPROC))'],
-                                capture_output=True, text=True, check=True)
-        self.assertEqual(result.stdout.split(), [str(limit), str(limit)])
-        self.assertEqual(cluster_cells.PLANE_PROCESSES, 512)
-        self.assertEqual(cluster_cells.driver_timeout(1000.0, 1), 1120.0)
-        self.assertEqual(cluster_cells.driver_timeout(1000.0, 4), 370.0)
-
-
-class ServingScoreTests(unittest.TestCase):
-    """The verifier recomputes serving income from the complete capture and the accuracy generations."""
-
-    def test_reward_recomputes_from_the_capture_and_rejects_a_changed_reward(self):
-        import score_workload
-        tests = REPO / 'serve-glm53-flash/tests'
-        sys.path.insert(0, str(tests))
-        try:
-            def load(name):
-                spec = importlib.util.spec_from_file_location('serving_' + name, tests / f'{name}.py')
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return module
-            simulator, scorer = load('simulator'), load('score')
-        finally:
-            sys.path.remove(str(tests))
-        items = json.loads((tests / 'hidden_eval.json').read_text())
-        generations = [{'id': item['id'], 'benchmark': item['benchmark'], 'generation': '\\boxed{' + item['gold'] + '}'}
-                       for item in items]
-        record = {'primer': False, 'ok': True, 'error': None, 'input_tokens': 1_000_000, 'cached_tokens': 200_000,
-                  'reported_output_tokens': 10_000, 'max_tokens': 10_000, 'text': 'x' * 10_000,
-                  't_send': 0, 't_first': .1, 't_last': 1, 't_done': 2, 'position': 0}
-        with tempfile.TemporaryDirectory() as temporary:
-            raw = Path(temporary)
-            (raw / 'traffic-pass-0.json').write_text(json.dumps({'records': [record], 't_start': 0.0, 'window_s': 900}))
-            (raw / 'accuracy.generations.json').write_text(json.dumps(generations))
-            (raw / 'diagnostics.json').write_text(json.dumps({'reward': 0.093}))
-            self.assertEqual(score_workload.serving_score(raw, simulator, scorer.score_candidate), 0.093)
-            (raw / 'diagnostics.json').write_text(json.dumps({'reward': 0.2}))
-            with self.assertRaises(ContractError):
-                score_workload.serving_score(raw, simulator, scorer.score_candidate)
-            (raw / 'traffic-pass-0.json').write_text(json.dumps({'records': [record], 't_start': 0.0, 'window_s': 300}))
-            with self.assertRaises(ContractError):
-                score_workload.serving_score(raw, simulator, scorer.score_candidate)
+        extra = guard.shadow_policy({'extra_packages': ['pytest']})
+        self.assertIn('pytest/__init__.py', guard.shadows(root, extra))
+        self.assertIn('megatron/__init__.py', guard.shadows(root, extra))
 
 
 if __name__ == '__main__':

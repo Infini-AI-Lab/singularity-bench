@@ -24,8 +24,7 @@ EXCLUDES = ['/etc/hostname', '/etc/hosts', '/etc/resolv.conf', '/etc/codex', '/o
 # directories in a started container's root filesystem, so a stage that mounts one of
 # them would otherwise differ from a stage that does not. Their contents are trusted
 # host mounts with their own provenance, never image or agent state.
-TRUSTED_MOUNTS = ['/opt/breakwater', '/opt/breakwater-drivers', '/opt/breakwater-worker',
-                  '/opt/breakwater-cell']
+TRUSTED_MOUNTS = ['/opt/breakwater', '/opt/breakwater-drivers']
 
 
 class RuntimeMismatch(ValueError):
@@ -55,7 +54,9 @@ def shadow_policy(extra=None):
     return policy
 
 
-def describe(container, workdir, packages=PACKAGES, shadow=None):
+def describe(container, workdir, packages=PACKAGES, shadow=None, trusted_mounts=()):
+    """The runtime inventory's specification. ``trusted_mounts``: a custom launcher's own read-only bind targets (the
+    driver of a submitted agent, its runners), left out of the inventory like the framework's."""
     # Called exactly once, BEFORE untrusted authoring. Its results are subsequently
     # fixed inputs to the external scanner, never rediscovered in the modified target.
     program = '''import importlib.util,json,sys,sysconfig
@@ -84,7 +85,7 @@ print(json.dumps({'roots':roots,'packages':origins,'interpreter':sys.executable}
             continue  # Task-owned mini_slime/model implementations remain editable.
         if str(path) != '/' and '..' not in path.parts:
             roots.add(str(path))
-    spec = {'version': VERSION, 'roots': sorted(roots), 'excludes': EXCLUDES + TRUSTED_MOUNTS,
+    spec = {'version': VERSION, 'roots': sorted(roots), 'excludes': EXCLUDES + TRUSTED_MOUNTS + list(trusted_mounts),
             'package_origins': value['packages'], 'interpreter': value['interpreter']}
     if shadow is not None:
         # Recorded in the sealed baseline so the verifier applies the identical policy.

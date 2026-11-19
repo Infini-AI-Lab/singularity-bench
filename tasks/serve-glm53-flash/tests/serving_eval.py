@@ -421,8 +421,8 @@ def measure_income(serve_cmd, port, seed, corr_items=None):
     base = f"http://{HOST}:{port}"
     clear_gpu(SHUTDOWN_TIMEOUT)   # evict any leftover agent dev-server holding the GPUs/port
     log(f"launching server: {serve_cmd!r}")
-    proc = subprocess.Popen([sys.executable, "-I", "/opt/breakwater-runtime/run_worker.py",
-                             "/bin/bash", "-c", serve_cmd], start_new_session=True)
+    from workers import worker_prefix  # the worker UID (Docker) or the submission sandbox (Apptainer)
+    proc = subprocess.Popen([*worker_prefix(), "/bin/bash", "-c", serve_cmd], start_new_session=True)
     try:
         try:
             if not wait_ready(proc, base, READY_TIMEOUT):
@@ -498,7 +498,7 @@ def write_reward(d):
 
 
 def run_grader(stock_cmd, eval_seed):
-    """Grade the server AGENT_CMD launches; called by breakwater/intermediate.py.
+    """Grade the server AGENT_CMD launches; called by the task's evaluate (tests/breakwater_task.py).
     `stock_cmd` launches the unmodified starter server, measured only when MEASURE_STOCK
     is set; `eval_seed` is the hidden traffic seed. The environment variables STOCK_CMD
     and SIM_SEED override them."""

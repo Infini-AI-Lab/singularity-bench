@@ -1,6 +1,7 @@
 schema_version = "1.1"
 
-# A downstream task of the coding-agent-harness grid. breakwater/cell.py runs it with the submitted harness
+# A downstream task of the coding-agent-harness grid. The grid's cells (tasks/coding-agent-harness/grid/) run it
+# with the submitted harness
 # driving one driver model and reads two values from this file: agent.timeout_sec (the harness's wall clock)
 # and verifier.timeout_sec (the time limit of the grading stage).
 

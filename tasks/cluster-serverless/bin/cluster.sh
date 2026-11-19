@@ -29,6 +29,9 @@
 # The agent's container talks to the GPU nodes by address. It never has a GPU: the task is to run a
 # fleet, not to sit on one.
 set -uo pipefail
+# bash 5.2 makes & in a ${var//pattern/replacement} replacement stand for the match, which would undo the quoting
+# run_on gives a remote command; keep the older meaning.
+shopt -u patsub_replacement 2>/dev/null || true
 
 TASK="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNS="${CLUSTER_RUNS:-$TASK/runs}"
@@ -37,6 +40,15 @@ RUNS="${CLUSTER_RUNS:-$TASK/runs}"
 RUN_ROOT="${CLUSTER_RUN_ROOT:-$RUNS}"
 WEIGHTS="${CLUSTER_WEIGHTS_DIR:-$HOME/hf-weights}"
 IMAGE="${CLUSTER_FLEET_IMAGE:-cluster-fleet:v1}"
+# docker (the default), or apptainer on nodes without Docker: CLUSTER_FLEET_IMAGE is then a SIF of
+# environment/fleetsvc (apptainer.def) at the same path on every node, and the manifest keeps node names, which
+# Breakwater's Apptainer sandboxes resolve to relays. With srun as the launcher, also export
+# CLUSTER_REMOTE_FOREGROUND=1 and give the step the whole node: srun --mem=0 --cpu-bind=none --oom-kill-step=0 ...
+# (a --mem above the node's RealMemory never starts; --oom-kill-step=0 keeps one process's OOM from killing the node's
+# whole fleet where Slurm sets OOMKillStep). CLUSTER_BASE_PORT moves the managers off 9100 where a site service holds it.
+# The fleet's caches go to a new home per run under CLUSTER_FLEET_HOME (node-local; default /tmp), removed by down.
+RUNTIME="${CLUSTER_FLEET_RUNTIME:-docker}"
+case "$RUNTIME" in docker|apptainer) ;; *) echo "CLUSTER_FLEET_RUNTIME must be docker or apptainer" >&2; exit 2 ;; esac
 GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
 PY="${CLUSTER_PYTHON:-python3}"
 # The card size the shipped catalogue was built against. Read from the artifact, never re-typed:
@@ -213,10 +225,15 @@ import json,sys
 c=json.load(open('$TASK/tests/catalogue-graded.json'))
 print(min(c['models'], key=lambda m: m['weights_gib'])['local_dir'])")
   for n in "$a" "$b"; do
-    run_on "$n" "docker image inspect $IMAGE >/dev/null 2>&1" >/dev/null 2>&1 || \
-      die "$IMAGE is not on $n. Run: ./bin/cluster.sh stage --nodes $a,$b"
-    fleet_image_arch_ok "$n" || \
-      die "$IMAGE on $n was built for a different architecture than $n. Remove it and re-stage: ./bin/cluster.sh stage --nodes $a,$b"
+    if [ "$RUNTIME" = apptainer ]; then
+      run_on "$n" "test -r $(printf '%q' "$IMAGE") && echo ok" 2>/dev/null | grep -q ok || \
+        die "$n cannot read the fleet SIF $IMAGE. Run: ./bin/cluster.sh stage --nodes $a,$b"
+    else
+      run_on "$n" "docker image inspect $IMAGE >/dev/null 2>&1" >/dev/null 2>&1 || \
+        die "$IMAGE is not on $n. Run: ./bin/cluster.sh stage --nodes $a,$b"
+      fleet_image_arch_ok "$n" || \
+        die "$IMAGE on $n was built for a different architecture than $n. Remove it and re-stage: ./bin/cluster.sh stage --nodes $a,$b"
+    fi
     run_on "$n" "test -d $(printf '%q' "$WEIGHTS/$ck")" >/dev/null 2>&1 || \
       die "$n cannot see $WEIGHTS/$ck -- the smallest checkpoint. Let ./bin/cluster.sh weights get that far first."
   done
@@ -244,15 +261,17 @@ PYCAT
   rc=$?; [ "$rc" = 3 ] && return 0; [ "$rc" = 0 ] || return 1
 
   "$PY" "$TASK/_kit/cluster_launch.py" up --nodes "$a,$b" --gpus-per-node "$GPUS_PER_NODE" \
+      --base-port "${CLUSTER_BASE_PORT:-9100}" \
       --catalogue "$rd/catalogue.json" --out "$rd/fleet.json" --public "$rd/fleet.public.json" \
       --image "$IMAGE" --run-dir "$rd" --weights "$WEIGHTS" --worker-script manager.py \
-      --seed multinode-check --perturb 0 \
+      --seed multinode-check --perturb 0 --runtime "$RUNTIME" \
       --receipt-key "$CLUSTER_RECEIPT_KEY" --grader-token "$CLUSTER_GRADER_TOKEN" \
       --wait "${FLEET_WAIT:-1800}" || { echo "the two-node fleet did not come up" >&2; return 1; }
 
   local ok=0
   "$PY" "$TASK/bin/check_cluster.py" "$rd" "$TASK/_kit" && ok=1
-  "$PY" "$TASK/_kit/cluster_launch.py" down --nodes "$a,$b" >/dev/null 2>&1 || true
+  "$PY" "$TASK/_kit/cluster_launch.py" down --fleet "$rd/fleet.json" >/dev/null || \
+    echo "  the probe fleet did not stop; run: ./bin/cluster.sh down --fleet $rd/fleet.json" >&2
   if [ "$ok" = 1 ]; then
     echo "  MULTI-NODE WORKS on these nodes."
   else
@@ -301,7 +320,19 @@ cmd_weights() {
 cmd_stage() {
   parse "$@"
   IFS=',' read -ra NL <<< "$NODES"
-  if [ "$SKIP_BUILD" = 0 ]; then
+  if [ "$RUNTIME" = apptainer ]; then
+    # One SIF on a shared path, built once (environment/fleetsvc/apptainer.def): check every node can read it.
+    echo "== can each node read the fleet SIF $IMAGE?"
+    local missing=0
+    for n in "${NL[@]}"; do
+      if run_on "$n" "test -r $(printf '%q' "$IMAGE") && echo ok" 2>/dev/null | grep -q ok; then
+        printf "  %-18s ok\n" "$n"
+      else
+        printf "  %-18s MISSING\n" "$n"; missing=1
+      fi
+    done
+    [ "$missing" = 0 ] || { echo "  build it with: apptainer build --fakeroot $IMAGE environment/fleetsvc/apptainer.def" >&2; return 1; }
+  elif [ "$SKIP_BUILD" = 0 ]; then
     echo "== building $IMAGE on $N_NODES nodes (in parallel; the vLLM base is ~9 GB)"
     local pids=() bad=0
     for n in "${NL[@]}"; do
@@ -359,23 +390,34 @@ fleet_up() {   # $1 = run directory
     # so per-node host-RAM budgets and cross-node sharding still behave as they do on a cluster.
     # It cannot tell you anything about speed -- the numbers come from a cost model.
     local onebox_addr
-    onebox_addr="${CLUSTER_ONEBOX_HOST:-$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')}"
+    if [ "$RUNTIME" = apptainer ]; then
+      onebox_addr="${CLUSTER_ONEBOX_HOST:-127.0.0.1}"   # Apptainer sandboxes reach loopback through relays
+    else
+      onebox_addr="${CLUSTER_ONEBOX_HOST:-$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')}"
+    fi
     [ -n "$onebox_addr" ] || { echo "set CLUSTER_ONEBOX_HOST to a host IPv4 address reachable from containers" >&2; return 1; }
     local nodes; nodes=$(python3 -c "print(','.join(f'node{i}' for i in range($ONE_BOX_NODES)))")
     "$PY" "$TASK/_kit/fleetgen.py" --workers $((ONE_BOX_NODES * GPUS_PER_NODE)) \
         --seed "cluster-${TAG:-1}" --perturb 0.10 --nodes "$nodes" \
         --gpus-per-node "$GPUS_PER_NODE" --one-host "$onebox_addr" --port-stride "$ONE_BOX_STRIDE" \
+        --base-port "${CLUSTER_BASE_PORT:-9100}" \
         --out "$rd/fleet.json" --public "$rd/fleet.public.json" > /dev/null
     local run_id fleet_image_id
-    fleet_image_id=$(docker image inspect --format '{{.Id}}' "$IMAGE") || return 1
+    if [ "$RUNTIME" = apptainer ]; then
+      fleet_image_id="sha256:$(sha256sum "$IMAGE" | cut -d' ' -f1)" || return 1
+    else
+      fleet_image_id=$(docker image inspect --format '{{.Id}}' "$IMAGE") || return 1
+    fi
     run_id=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
-    "$PY" - "$rd/fleet.json" "$run_id" "$fleet_image_id" "$TASK/_kit" <<'OWNED'
+    "$PY" - "$rd/fleet.json" "$run_id" "$fleet_image_id" "$TASK/_kit" "$RUNTIME" "$PY" <<'OWNED'
 import json, sys
-p, identity, image, kit = sys.argv[1:]
+p, identity, image, kit, runtime, python = sys.argv[1:]
 sys.path.insert(0, kit)
 from cluster_launch import healthy
 f = json.load(open(p))
-f.update(run_id=identity, launch={"mode": "container", "cleanup_nodes": ["localhost"], "images": {"localhost":image}})
+mode = "apptainer" if runtime == "apptainer" else "container"
+f.update(run_id=identity, launch={"mode": mode, "cleanup_nodes": ["localhost"], "images": {"localhost": image},
+                                  "kit_dir": kit, "python": python})
 json.dump(f, open(p, "w"), indent=1)
 if any(healthy(n["host"], n["port"]) for n in f["nodes"]) or healthy(f["controller"]["host"], f["controller"]["port"]):
     raise SystemExit("fleet endpoints already occupied; no existing processes stopped")
@@ -383,6 +425,15 @@ OWNED
     [ "$?" = 0 ] || return 1
     # One container holds the fleet. simmanager supervises a separate process and
     # event loop for each logical node, matching the distributed simulator path.
+    if [ "$RUNTIME" = apptainer ]; then
+      # On the host's network; every process carries CLUSTER_RUN_ID, by which `down` stops them.
+      nohup setsid "${CLUSTER_APPTAINER:-apptainer}" exec --cleanenv --no-home --pwd /fleet \
+        --env CLUSTER_RUN_ID="$run_id" --env CLUSTER_FLEET_MODE=sim --env CLUSTER_RUN_CONTROLLER=1 \
+        --env CLUSTER_NODES=/fleet/run/fleet.json --env CLUSTER_CATALOGUE=/fleet/run/catalogue.json \
+        --env CLUSTER_LOG_DIR=/fleet/run/logs --env CLUSTER_RECEIPT_KEY="$CLUSTER_RECEIPT_KEY" \
+        --env CLUSTER_GRADER_TOKEN="$CLUSTER_GRADER_TOKEN" --env CLUSTER_TIME_SCALE="${TIME_SCALE:-1}" \
+        --bind "$rd":/fleet/run "$IMAGE" /bin/bash /fleet/entrypoint.sh > "$rd/logs/fleet.log" 2>&1 < /dev/null &
+    else
     docker run --rm --name "cluster-fleet-$run_id" --label "cluster.run=$run_id" -d --network host \
       --cpus 8 --memory 32g --memory-swap 32g --pids-limit 4096 --ulimit nofile=65536:65536 -e CLUSTER_RUN_ID="$run_id" \
       -e CLUSTER_FLEET_MODE=sim -e CLUSTER_RUN_CONTROLLER=1 -e CLUSTER_NODES=/fleet/run/fleet.json \
@@ -392,6 +443,7 @@ OWNED
       -v "$rd":/fleet/run "$fleet_image_id" >/dev/null || {
         echo "could not start the emulated fleet; is $IMAGE built here? (./bin/cluster.sh stage --nodes localhost)" >&2
         return 1; }
+    fi
     if ! "$PY" - "$TASK/_kit" "$rd/fleet.json" <<'READY'
 import json, sys
 sys.path.insert(0, sys.argv[1])
@@ -409,13 +461,13 @@ READY
   fi
 
   "$PY" "$TASK/_kit/cluster_launch.py" up \
-      --nodes "$NODES" --gpus-per-node "$GPUS_PER_NODE" \
+      --nodes "$NODES" --gpus-per-node "$GPUS_PER_NODE" --base-port "${CLUSTER_BASE_PORT:-9100}" \
       --catalogue "$rd/catalogue.json" \
       --out "$rd/fleet.json" --public "$rd/fleet.public.json" \
       --image "$IMAGE" --run-dir "$rd" --weights "$WEIGHTS" \
       --worker-script "$([ "$FLEET_MODE" = sim ] && echo simmanager.py || echo manager.py)" \
       --time-scale "$([ "$FLEET_MODE" = sim ] && echo "${TIME_SCALE:-1}" || echo 1)" \
-      --seed "cluster-${TAG:-1}" --perturb 0.10 \
+      --seed "cluster-${TAG:-1}" --perturb 0.10 --runtime "$RUNTIME" \
       --receipt-key "$CLUSTER_RECEIPT_KEY" --grader-token "$CLUSTER_GRADER_TOKEN" \
       --wait "${FLEET_WAIT:-1800}"
 }
@@ -426,7 +478,7 @@ cmd_up() {
   [ -n "${CLUSTER_RECEIPT_KEY:-}" ] && [ -n "${CLUSTER_GRADER_TOKEN:-}" ] || \
     die "export CLUSTER_RECEIPT_KEY and CLUSTER_GRADER_TOKEN first; breakwater/run.py needs the same values"
   parse "$@"; mkdir -p "$RUN_ROOT"; local rd; rd=$(mktemp -d "$RUN_ROOT/fleet-XXXXXXXX")
-  fleet_up "$rd" && echo "fleet up: --fleet $rd/fleet.json --public-fleet $rd/fleet.public.json"
+  fleet_up "$rd" && echo "fleet up: --input fleet=$rd/fleet.json --input public-fleet=$rd/fleet.public.json"
 }
 cmd_down() {
   [ "$#" = 2 ] && [ "$1" = --fleet ] || die "down requires --fleet /path/to/the/run/fleet.json"

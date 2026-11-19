@@ -191,6 +191,67 @@ def compare(local, protected, *, deadline_reached=False):
     return report
 
 
+def check_exec_journal(folder):
+    """An Apptainer command broker's evidence (apptainer/broker.py). The journal is an unbroken hash chain from
+    ``broker_started`` (with tracing on) to ``broker_stopped`` (drained). Every command was started, answered (it
+    exited, or its sandbox was gone before it could start) and, if it ran, had its streams closed; each command that
+    ran has a non-empty strace and stdout/stderr matching their digest files. No other files are present."""
+    import re
+    folder = Path(folder)
+    data = regular(folder, 'exec.jsonl').read_bytes()
+    require(data.endswith(b'\n'), 'Truncated command journal')
+    previous, records = '0' * 64, []
+    for sequence, line in enumerate(data.decode().split('\n')[:-1]):
+        record = json.loads(line)
+        require(isinstance(record, dict) and record.get('prev') == previous and record.get('seq') == sequence,
+                'Broken command journal chain')
+        previous = hashlib.sha256(line.encode()).hexdigest()
+        records.append(record)
+    require(records and records[0].get('event') == 'broker_started' and records[0].get('trace') is True,
+            'The command broker did not trace from the start')
+    require(len(records) > 1 and records[-1].get('event') == 'broker_stopped' and records[-1].get('drained') is True,
+            'The command broker did not drain')
+    started, answered, closed, unavailable, statuses, restarts = set(), set(), set(), set(), {}, 0
+    for record in records[1:-1]:
+        event, number = record.get('event'), record.get('id')
+        if event == 'exec_started':
+            require(type(number) is int and number not in started, 'Duplicate command record')
+            started.add(number)
+        elif event in ('exec_exited', 'sandbox_unavailable'):
+            require(number in started and number not in answered, 'Command answered without a start')
+            answered.add(number)
+            if event == 'exec_exited':
+                statuses[str(record.get('status'))] = statuses.get(str(record.get('status')), 0) + 1
+            else:
+                unavailable.add(number)
+                closed.add(number)  # nothing ran: no streams to close
+        elif event == 'exec_streams_closed':
+            require(number in answered and number not in closed, 'Command streams closed without an answer')
+            closed.add(number)
+        elif event == 'command_sandbox_restarted':
+            restarts += 1
+        else:
+            require(event in ('command_sandbox_lost', 'command_sandbox_not_empty', 'commands_killed'),
+                    'Unknown command journal event')
+    require(started == answered == closed and records[-1].get('commands') == len(started), 'Incomplete command records')
+    expected = {'exec.jsonl'}
+    for number in sorted(started - unavailable):
+        require(regular(folder, f'exec-{number}.strace').stat().st_size > 0, 'Empty command trace')
+        expected.add(f'exec-{number}.strace')
+        for stream in ('stdout', 'stderr'):
+            path = regular(folder, f'exec-{number}.{stream}')
+            recorded = regular(folder, f'exec-{number}.{stream}.sha256').read_text().split()
+            require(recorded == [digest(path), str(path.stat().st_size)], 'Command stream differs from its digest')
+            expected.update({path.name, path.name + '.sha256'})
+    present = {path.relative_to(folder).as_posix() for path in folder.rglob('*')}
+    require(present == expected and all(re.fullmatch(r'exec(-\d+\.\w+(\.sha256)?|\.jsonl)', name) for name in present),
+            'Unexpected or missing command evidence files')
+    return {'status': 'PASS', 'traced_from_start': True, 'drained': True, 'commands': len(started),
+            'unavailable': len(unavailable), 'traces_verified': len(started - unavailable),
+            'stream_digests_verified': 2 * len(started - unavailable), 'statuses': statuses,
+            'command_sandbox_restarts': restarts, 'last_sha256': previous}
+
+
 def reconcile(evidence, authority, local_root, options=None):
     """options: author_gateway (bool), service_gateways ({folder: source}), native ('jsonl'|'streams'),
     agent_deadline_reached (bool, only from a launch record the verifier accepted)."""
@@ -200,7 +261,10 @@ def reconcile(evidence, authority, local_root, options=None):
     require(manifest.get('finalized') is True and manifest.get('stage_order') == ['agent', 'intermediate'],
             'External evidence was not finalized after both execution stages')
     report = {'protocol': manifest['protocol'], 'identity': identity, 'status': 'PASS', 'observers': {}}
-    for stage in ('agent', 'intermediate'):
+    # Apptainer backend: the brokers' journals replace the per-stage observer recordings.
+    for folder in (('commands', 'evaluation-commands') if options.get('backend') == 'apptainer' else ()):
+        report['observers'][folder] = check_exec_journal(Path(evidence) / folder)
+    for stage in (() if options.get('backend') == 'apptainer' else ('agent', 'intermediate')):
         ready = read_json(regular(evidence, f'{stage}/ready.json'))
         require(ready.get('ready') is True and ready.get('protocol') == 'external-evidence-v3', 'Recorder protocol/readiness mismatch')
         coverage = read_json(regular(evidence, f'{stage}/coverage.json'))

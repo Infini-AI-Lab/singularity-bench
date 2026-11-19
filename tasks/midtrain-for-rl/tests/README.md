@@ -11,8 +11,8 @@ its workspace has been sealed:
 
 | Stage | Container | What runs |
 | --- | --- | --- |
-| Evaluation | a fresh container from the agent's image, four GPUs | the RL stage and post-RL evaluation as the trusted root coordinator (`breakwater/intermediate.py`, kind `midtrain`) |
-| Verifier | read-only, no GPU, UID 1102 | score recomputation from the sealed outputs (`breakwater/score_workload.py`) and the integrity judge |
+| Evaluation | a fresh container from the agent's image, four GPUs | the RL stage and post-RL evaluation as the trusted root coordinator (`evaluate` in `breakwater_task.py`) |
+| Verifier | read-only, no GPU, UID 1102 | score recomputation from the sealed outputs (`score` in `breakwater_task.py`) and the integrity judge |
 
 Inputs of the evaluation container:
 

@@ -4,6 +4,5 @@
   "write_roots": [
     "/app"
   ],
-  "local_network": true,
-  "development_gateway": false
+  "local_network": true
 }

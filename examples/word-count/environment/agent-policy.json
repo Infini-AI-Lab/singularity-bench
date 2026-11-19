@@ -1,0 +1,8 @@
+{
+  "name": "word-count",
+  "workdir": "/app",
+  "write_roots": [
+    "/app"
+  ],
+  "local_network": true
+}

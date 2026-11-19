@@ -124,7 +124,7 @@ ENV HF_HUB_OFFLINE=1
 # GLM-5.3-Flash is ~328 GB. Baking it makes the image enormous: slow to build, slow to
 # push/pull, and duplicated on disk in every image that serves the same weights.
 # Instead Breakwater mounts the host directory holding the snapshot READ-ONLY at
-# /models/GLM-5.3-Flash (see ../bindings.example.json), so the image stays small and the
+# /models/GLM-5.3-Flash ([[breakwater.assets]] in ../task.toml), so the image stays small and the
 # weights exist once per machine.
 #
 # /models is READ-ONLY to the agent and commands have no network at run time, so the

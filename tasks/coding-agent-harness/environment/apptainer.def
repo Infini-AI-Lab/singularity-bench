@@ -1,0 +1,88 @@
+# The coding-agent-harness task runtime as an Apptainer image: a step-for-step translation of
+# environment/Dockerfile (same base images, pins and steps) for hosts without Docker. Build it with
+# environment/build-apptainer.sh, which stages the files the Docker build takes from its context (environment/).
+# The harness must run on CPython 3.11, so the interpreter comes from the official Python 3.11 image; the CUDA 13
+# toolkit provides a compiler that recognizes the evaluation GPUs (sm_103 on GB300). Apptainer pulls each base
+# image for the build host's architecture; GB300 hosts are arm64.
+Bootstrap: docker
+From: python:3.11.14-slim-bookworm
+Stage: python
+
+Bootstrap: docker
+From: nvidia/cuda:13.0.2-devel-ubuntu24.04
+Stage: runtime
+
+# The CPython 3.11 installation: each entry of the python stage's /usr/local is merged into this image's, as the
+# Dockerfile's COPY merges the directories (Apptainer copies files before %post, the Dockerfile after apt; apt
+# installs nothing under /usr/local).
+%files from python
+    /usr/local/* /usr/local/
+
+# %files: the agent's starting /app.
+%files
+    harness /app/harness
+    spec /app/spec
+    smoke /app/smoke
+    examples /app/examples
+    harness_api.py /app/harness_api.py
+    selfcheck.py /app/selfcheck.py
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export PYTHONDONTWRITEBYTECODE=1
+    export CUDA_HOME=/usr/local/cuda
+    export PYTHONUNBUFFERED=1
+
+%post -c /bin/bash
+    set -euo pipefail
+    # %post's /tmp is the build host's, often small: temporary files (pip's downloads and unpacked wheels, several GB)
+    # go to a directory in the image tree instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    export DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    apt-get -o APT::Sandbox::User=root update
+    # An unprivileged build without /etc/subuid ranges maps only the calling user (as root), and dpkg cannot give
+    # package files other owners ("error setting ownership ... Invalid argument"). There, package installs run under
+    # fakeroot, which records those ownership changes instead of making them (every file stays root's); it is removed
+    # at the end of %post.
+    probe=$(mktemp /root/.chown-probe.XXXXXX)
+    if chown 1:1 "${probe}" 2>/dev/null; then fakeroot=""; else
+        apt-get -o APT::Sandbox::User=root install -y --no-install-recommends fakeroot
+        fakeroot="env FAKEROOTDONTTRYCHOWN=1 fakeroot"
+        echo "root-mapped build: package installs run under fakeroot"
+    fi
+    rm -f "${probe}"
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        iptables iproute2 ca-certificates build-essential git procps ripgrep tmux jq curl util-linux \
+        libbz2-1.0 libffi8 libgdbm6t64 libgdbm-compat4t64 liblzma5 libncursesw6 \
+        libreadline8t64 libsqlite3-0 libssl3t64 libuuid1 zlib1g
+    rm -rf /var/lib/apt/lists/*
+
+    ldconfig
+    python3 -c 'import ssl, sqlite3, ctypes, bz2, lzma, readline; import sys; assert sys.version_info[:2] == (3, 11)'
+    export CUDA_HOME=/usr/local/cuda PYTHONUNBUFFERED=1
+
+    python3 -m pip install --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+    python3 -m pip install --no-cache-dir numpy==2.2.6 ninja==1.11.1.4 pytest==8.3.5
+    python3 -c 'import torch, triton; assert torch.version.cuda == "13.0"; print(torch.__version__, triton.__version__)'
+
+    # Breakwater seeds the task workspace from the image's /app and starts commands there (Apptainer has no
+    # WORKDIR).
+    mkdir -p /app
+    cd /app
+    # Sticky, group-writable parent: the author can create scratch files but cannot replace the root-owned
+    # spec/smoke/API paths by renaming their directory entries. The Dockerfile also gives /app and /app/harness to
+    # GID 1200, the author image's shared workspace group; an unprivileged --fakeroot build maps only one UID and
+    # GID, so only the modes are kept.
+    chmod 3775 /app
+    chmod 2775 /app/harness
+    chmod g+w /app/harness/agent.py
+
+    # The coding-agent CLI is installed by Breakwater (breakwater/apptainer/install_cli.py), not here.
+
+    rm -rf /opt/build-tmp
+    # The build's own fakeroot (above), when it needed one, is not part of the image.
+    if [ -n "${fakeroot}" ]; then dpkg --purge fakeroot libfakeroot; fi

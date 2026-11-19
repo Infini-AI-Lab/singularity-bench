@@ -1,4 +1,4 @@
-# Hash-chained development (harness authoring) / driver (grid cell) model gateway.
+# Hash-chained model gateway: a task's model access (development role) or a submitted agent's model (driver role).
 FROM python:3.12-slim-bookworm
 COPY dev_gateway.py /opt/dev_gateway.py
 ENTRYPOINT ["python3", "-I", "/opt/dev_gateway.py"]

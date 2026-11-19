@@ -1,0 +1,1299 @@
+{
+ "_comment": "What the Docker author image's bootstrap writes to /etc/hosts and runs as iptables, per image policy, authoring plan and resolved services; the iptables commands were captured from the bootstrap before its rules became author/task_config.firewall_plan.",
+ "addresses": {
+  "agent-host": [
+   "172.17.0.5"
+  ],
+  "author-gateway": [
+   "172.18.0.2"
+  ],
+  "cell-gateway": [
+   "172.18.0.4"
+  ],
+  "dev-svc": [
+   "10.2.0.9"
+  ],
+  "gateway": [
+   "172.18.0.3"
+  ],
+  "login": [
+   "10.2.0.1"
+  ],
+  "node0": [
+   "10.1.0.10"
+  ],
+  "node1": [
+   "10.1.0.11"
+  ],
+  "node2": [
+   "10.1.0.12"
+  ],
+  "node3": [
+   "10.1.0.13"
+  ],
+  "tray1": [
+   "10.2.0.2"
+  ]
+ },
+ "cases": {
+  "local_network": {
+   "commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "127.0.0.1",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "172.17.0.5",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "127.0.0.1",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "172.17.0.5",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "hosts": "\n172.18.0.2 author-gateway\n",
+   "plan": {
+    "endpoints": [],
+    "env": {},
+    "hosts": [],
+    "rejects": [],
+    "reply_ports": null,
+    "services": [],
+    "version": 1
+   },
+   "resolved": [
+    [
+     1100,
+     "author-gateway",
+     8001,
+     [
+      "172.18.0.2"
+     ]
+    ]
+   ],
+   "task": {
+    "local_network": true,
+    "name": "t",
+    "workdir": "/app",
+    "write_roots": [
+     "/app"
+    ]
+   }
+  },
+  "model_access": {
+   "commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.3",
+     "--dport",
+     "8000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "hosts": "\n172.18.0.2 author-gateway\n\n172.18.0.3 gateway\n",
+   "plan": {
+    "endpoints": [],
+    "env": {},
+    "hosts": [],
+    "rejects": [],
+    "reply_ports": null,
+    "services": [
+     {
+      "host": "gateway",
+      "port": 8000
+     }
+    ],
+    "version": 1
+   },
+   "resolved": [
+    [
+     1100,
+     "author-gateway",
+     8001,
+     [
+      "172.18.0.2"
+     ]
+    ],
+    [
+     1101,
+     "gateway",
+     8000,
+     [
+      "172.18.0.3"
+     ]
+    ]
+   ],
+   "task": {
+    "local_network": false,
+    "name": "t",
+    "workdir": "/app",
+    "write_roots": [
+     "/app"
+    ]
+   }
+  },
+  "plain": {
+   "commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "hosts": "\n172.18.0.2 author-gateway\n",
+   "plan": {
+    "endpoints": [],
+    "env": {},
+    "hosts": [],
+    "rejects": [],
+    "reply_ports": null,
+    "services": [],
+    "version": 1
+   },
+   "resolved": [
+    [
+     1100,
+     "author-gateway",
+     8001,
+     [
+      "172.18.0.2"
+     ]
+    ]
+   ],
+   "task": {
+    "local_network": false,
+    "name": "t",
+    "workdir": "/app",
+    "write_roots": [
+     "/app"
+    ]
+   }
+  },
+  "remote_endpoints": {
+   "captured_commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.10",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.11",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.12",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.13",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.11",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.12",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.13",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.11",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.12",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.13",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "captured_hosts": "\n172.18.0.2 author-gateway\n\n10.1.0.10 node0\n\n10.1.0.11 node1\n\n10.1.0.12 node2\n\n10.1.0.13 node3\n",
+   "commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.10",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.11",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.12",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "-d",
+     "10.1.0.13",
+     "--dport",
+     "19100",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.11",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.12",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.1.0.13",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.10",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.11",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.12",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.1.0.13",
+     "-p",
+     "tcp",
+     "--dport",
+     "9101:9299",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "hosts": "\n172.18.0.2 author-gateway\n\n10.1.0.10 node0\n\n10.1.0.11 node1\n\n10.1.0.12 node2\n\n10.1.0.13 node3\n",
+   "plan": {
+    "endpoints": [
+     {
+      "host": "node0",
+      "name": "node0",
+      "ports": [
+       "9000",
+       "9101:9299"
+      ]
+     },
+     {
+      "host": "node1",
+      "name": "node1",
+      "ports": [
+       "9101:9299"
+      ]
+     },
+     {
+      "host": "node2",
+      "name": "node2",
+      "ports": [
+       "9101:9299"
+      ]
+     },
+     {
+      "host": "node3",
+      "name": "node3",
+      "ports": [
+       "9101:9299"
+      ]
+     }
+    ],
+    "env": {},
+    "hosts": [],
+    "rejects": [
+     {
+      "host": "node0",
+      "port": 19100
+     },
+     {
+      "host": "node1",
+      "port": 19100
+     },
+     {
+      "host": "node2",
+      "port": 19100
+     },
+     {
+      "host": "node3",
+      "port": 19100
+     }
+    ],
+    "reply_ports": null,
+    "services": [],
+    "version": 1
+   },
+   "resolved": [
+    [
+     1100,
+     "author-gateway",
+     8001,
+     [
+      "172.18.0.2"
+     ]
+    ]
+   ],
+   "task": {
+    "local_network": false,
+    "name": "t",
+    "workdir": "/app",
+    "write_roots": [
+     "/app"
+    ]
+   }
+  },
+  "sandbox_worker": {
+   "commands": [
+    [
+     "iptables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "iptables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-d",
+     "127.0.0.11",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "127.0.0.1",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "172.17.0.5",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-d",
+     "10.3.0.7",
+     "-p",
+     "tcp",
+     "--dport",
+     "11000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "127.0.0.1",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "172.17.0.5",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "0",
+     "-d",
+     "10.3.0.7",
+     "-p",
+     "tcp",
+     "--dport",
+     "11000",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1100",
+     "-p",
+     "tcp",
+     "-d",
+     "172.18.0.2",
+     "--dport",
+     "8001",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-m",
+     "owner",
+     "--uid-owner",
+     "1101",
+     "-p",
+     "tcp",
+     "--sport",
+     "30000:30015",
+     "-m",
+     "conntrack",
+     "--ctstate",
+     "ESTABLISHED",
+     "-j",
+     "ACCEPT"
+    ],
+    [
+     "iptables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ],
+    [
+     "ip6tables",
+     "-P",
+     "OUTPUT",
+     "DROP"
+    ],
+    [
+     "ip6tables",
+     "-F",
+     "OUTPUT"
+    ],
+    [
+     "ip6tables",
+     "-A",
+     "OUTPUT",
+     "-j",
+     "REJECT"
+    ]
+   ],
+   "hosts": "\n172.18.0.2 author-gateway\n\n10.3.0.7 sandbox-worker\n\n10.3.0.7 host.docker.internal\n",
+   "plan": {
+    "endpoints": [
+     {
+      "host": "10.3.0.7",
+      "name": "sandbox-worker",
+      "ports": [
+       "11000"
+      ]
+     }
+    ],
+    "env": {},
+    "hosts": [
+     [
+      "host.docker.internal",
+      "10.3.0.7"
+     ]
+    ],
+    "rejects": [],
+    "reply_ports": "30000:30015",
+    "services": [],
+    "version": 1
+   },
+   "resolved": [
+    [
+     1100,
+     "author-gateway",
+     8001,
+     [
+      "172.18.0.2"
+     ]
+    ]
+   ],
+   "task": {
+    "local_network": true,
+    "name": "t",
+    "workdir": "/app",
+    "write_roots": [
+     "/app"
+    ]
+   }
+  }
+ },
+ "hostname": "agent-host"
+}

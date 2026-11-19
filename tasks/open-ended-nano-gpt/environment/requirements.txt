@@ -1,4 +1,4 @@
-# Pinned Python packages of the task runtime, installed by environment/Dockerfile after torch 2.7.1+cu128.
+# Pinned Python packages of the task runtime, installed by environment/Dockerfile after torch 2.9.1+cu129.
 accelerate==1.14.0
 datasets==5.0.0
 einops==0.8.1

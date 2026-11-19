@@ -37,7 +37,7 @@ Rules that matter, all stated to the agent:
 - The development models may be used to test the harness on example tasks, never to design, write, debug, optimize
   or review it. Development requests and responses are retained and reviewed by the integrity judge.
 - `/app/spec/`, `/app/smoke/`, `/app/examples/`, `/app/selfcheck.py` and `/app/harness_api.py` must stay
-  byte-identical (`protected_workspace_paths` in `tasks/coding-agent-harness/breakwater.json`), and installed
+  byte-identical (`[breakwater.workspace] protected_paths` in `tasks/coding-agent-harness/task.toml`), and installed
   packages may not be replaced or shadowed.
 - The agent's commands run as the unprivileged worker (UID 1101) and reach only the development gateway and local
   servers; the author model and the held-out driver are unreachable from commands.
@@ -118,8 +118,8 @@ The Singularity-Index's harness term is the agent's harness score divided by 0.4
 
 During authoring, the development gateway (`breakwater/dev_gateway.py`, image `breakwater-dev-gateway:local`) serves
 `chat` (GLM 5.3), `chat-b` (Kimi K3) and `embed` (Qwen3 Embedding 8B) with **5,000,000 chat tokens** and
-**20,000,000 embedding tokens** per authoring run (`development_gateway` in
-`tasks/coding-agent-harness/breakwater.json`). Chat is text-only, non-streaming, `n=1`, with exactly one explicit
+**20,000,000 embedding tokens** per authoring run (`[breakwater.model_access]` in
+`tasks/coding-agent-harness/task.toml`). Chat is text-only, non-streaming, `n=1`, with exactly one explicit
 positive `max_tokens` or `max_completion_tokens`. Function tools are supported; the gateway never executes them.
 Embeddings accept text or token IDs. Unknown routes, models and unsupported fields are rejected. The spec states the
 same contract to the agent.
@@ -139,8 +139,8 @@ of a violation. In grid cells the same image runs in its driver role: one driver
 
 ## Preparing assets
 
-The task needs no prepared assets: the agent's workspace is the image's own `/app` (`workspace_source: image`), and
-`tasks/coding-agent-harness/bindings.example.json` is empty. The sealed oracles of the kernel tasks are in the
+The task needs no prepared assets: the agent's workspace is the image's own `/app` (`workspace.source = "image"`),
+and the task declares no assets. The sealed oracles of the kernel tasks are in the
 repository, under each kernel task's `tests/` (`_fa4_oracle.tar.gz`, 0.35 MB; `_fa4_mla_oracle.tar.gz`, 0.4 MB;
 `_flash_mla_oracle.tar.gz`, 5 MB, an x86_64 build for Hopper). Everything else the downstream images need (PyTorch
 and FlashInfer wheels, FlashInfer's prebuilt cubins, the vLLM checkouts, TinyLlama-1.1B-Chat for `pr-vllm-35022` and
@@ -168,20 +168,40 @@ docker build -f breakwater/Dockerfile.dev-gateway -t breakwater-dev-gateway:loca
 
 ## Running the authoring stage under Breakwater
 
-`tasks/coding-agent-harness/bindings.example.json` is empty, so it can be passed as is, with any empty directory as
-the asset root. `FIREWORKS_API_KEY` is used by the integrity judge and by the development gateway (`--dev-key-env`
+The task declares no assets, so any empty directory can be the asset root. `FIREWORKS_API_KEY` is used by the integrity judge and by the development gateway (`--dev-key-env`
 selects a different variable).
+
+### On Apptainer
+
+Apptainer is the default backend. Build the runtime as a SIF and run the authoring stage
+([breakwater/apptainer/README.md](../../breakwater/apptainer/README.md)); the development gateway runs on the host and is relayed into the agent's command sandboxes as
+`gateway:8000`:
+
+```bash
+TASK_SIF=coding-agent-harness.sif bash tasks/coding-agent-harness/environment/build-apptainer.sh
+python3 -m breakwater install-cli --dest CLI_DIR        # once: the pinned agent CLI (--agent codex for Codex)
+python3 -m breakwater install-judge --dest JUDGE_DIR    # once: the pinned judge runner
+python3 -m breakwater run --task tasks/coding-agent-harness --image coding-agent-harness.sif \
+  --cli-dir CLI_DIR --judge-dir JUDGE_DIR --run-dir RUN_DIR --asset-root ASSET_ROOT \
+  --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR --scratch LOCAL_DISK_DIR
+```
+
+### On Docker
+
+With the images built as above:
 
 ```bash
 export FIREWORKS_API_KEY=...
-python3 breakwater/run.py --task tasks/coding-agent-harness \
+python3 -m breakwater run --backend docker --task tasks/coding-agent-harness \
   --agent-image coding-agent-harness-author:claude-code --verifier-image coding-agent-harness-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
   --dev-gateway-image breakwater-dev-gateway:local \
-  --run-dir RUN_DIR --asset-root ASSET_ROOT --bindings tasks/coding-agent-harness/bindings.example.json \
+  --run-dir RUN_DIR --asset-root ASSET_ROOT \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR \
   --gpus device=0
 ```
+
+### Reports and stages
 
 The run prints one JSON line that includes `authority_sha256`, and writes `RUN_DIR/reports/`
 (`mechanical-check.json`, `judge.json`, `reward.json`).
@@ -190,8 +210,8 @@ The run prints one JSON line that includes `authority_sha256`, and writes `RUN_D
   gateway; its commands run as the worker and reach only the development gateway (`gateway:8000`) and local servers.
   When the 21,600 s budget ends, authoring stops and the workspace is graded as it is.
 - **Intermediate stage (validity battery).** A fresh container from the same image, with no network, gets the sealed
-  workspace. The trusted root coordinator (`breakwater/intermediate.py`, kind `harness`, which runs
-  `breakwater/harness_battery.py`) runs the seven scenarios of
+  workspace. The trusted root coordinator (the task's `evaluate` in `tests/breakwater_task.py`, which runs
+  `tests/harness_battery.py`) runs the seven scenarios of
   `tasks/coding-agent-harness/tests/smoke/scenarios.json`. For each, a fresh worker process imports the sealed
   `/app/harness/agent.py` and calls `run()`; every model call crosses a pipe to the root process, where
   `tasks/coding-agent-harness/tests/smoke/scripted.py` answers it and records it. Root then checks the scenario
@@ -204,52 +224,10 @@ The run prints one JSON line that includes `authority_sha256`, and writes `RUN_D
 
 ## Running the grid
 
-Each (task, driver) cell is its own three-container run (`breakwater/cell.py`, contract
-`breakwater/cell-pipeline.json`), started by `breakwater/grid.py`. For each downstream task, build its image, the
-cell overlay and the cell verifier:
-
-```bash
-for path in kernels/flash-attn-backward kernels/nvfp4-gemm kernels/mla-decode \
-            pr-reproduction/pr-vllm-35022 pr-reproduction/pr-vllm-33698; do
-  task=${path#*/}
-  docker build -t $task:local tasks/coding-agent-harness/eval/e2e_tasks/$path/environment
-  docker build -f breakwater/cell/Dockerfile.overlay --build-arg TASK_BASE=$task:local -t $task-cell:local breakwater
-  docker build -f breakwater/cell/Dockerfile.verifier --build-arg TASK_BASE=$task-cell:local \
-    --build-context task=tasks/coding-agent-harness/eval/e2e_tasks/$path -t $task-cell-verifier:local breakwater
-done
-```
-
-List the images in a copy of `breakwater/images.example.json` (observer, driver gateway
-`breakwater-dev-gateway:local`, and each task's cell and verifier image), then run the grid against the root run and
-report the score. `--gpus` lists the GPU indices; cells run in parallel, one per GPU.
-
-```bash
-export FIREWORKS_API_KEY=...        # the driver gateway and the cell judges
-python3 breakwater/grid.py run --harness-run RUN_DIR --harness-authority AUTHORITY_SHA256 \
-  --images images.json --run-root GRID_DIR --gpus 0,1,2
-python3 breakwater/grid.py report --harness-run RUN_DIR --harness-authority AUTHORITY_SHA256 --run-root GRID_DIR
-```
-
-The profile (`compact5-v1`) and the three drivers come from `tasks/coding-agent-harness/eval/config.json`;
-`--profile` and `--drivers` select others, and `--wall-sec` shortens every cell's wall clock for a cheaper,
-non-comparable run. The report prints every cell and the mean, and writes `GRID_DIR/grid-report.json` (`score`,
-`per_driver_mean`, `cells`); while any cell is void or missing, `score` is null and `status` is `incomplete`.
-
-Inside a cell:
-
-1. **Cell agent container.** The downstream task image with the cell overlay, which removes any pre-installed agent
-   CLI and JavaScript runtime. The sealed root harness is mounted read-only at `/harness` and driven by
-   `breakwater/cell_drive.py` as the worker, with the downstream task's `instruction.md` as the task and its
-   workspace (`/app` for the kernel tasks, `/app/vllm` for the PR tasks). Its only network peer is the driver
-   gateway, which holds the provider key, pins the cell's driver model and journals every request; a one-token probe
-   that the endpoint deterministically rejects voids the cell.
-2. **Grading stage.** A fresh container from the same image. Only the workspace changes cross: files the harness
-   added or modified inside the workspace, plus deletions. Kernel tasks run the task's own `tests/verify_env.py` as
-   root, with the submitted kernel in a separate worker process; PR tasks run a fixed public runner as the worker
-   (`breakwater/downstream/`, `breakwater/worker/`).
-3. **Cell verifier.** A read-only container with no GPU checks that the overlay matches the recorded change set,
-   recomputes every speedup, both geomeans and the reward from the raw timings (or rescores the PR rows), and runs
-   the cell judge with `breakwater/downstream/cell_judge.md`.
+The grid ([`grid/`](grid/)) runs the sealed root harness as the agent on each downstream task in `eval/e2e_tasks/`,
+with each driver model in `eval/config.json`: every (task, driver) cell is its own three-stage Breakwater run, on
+Docker or Apptainer. [`grid/README.md`](grid/README.md) has the image builds, the commands and what happens inside a
+cell.
 
 ## Hardware notes (GB300)
 
@@ -265,14 +243,20 @@ Inside a cell:
   4.6.0 and 4.6.1, whose FA4 backward can hang, and keeps the cuDNN route. The verifier writes `progress.json`
   before each major step and dumps stack traces every 300 s.
 
+## Known limits
+
+- Candidate kernel timing in grid cells includes one pipe round trip per timed batch: a small bias against the
+  candidate that cannot be subtracted without trusting the worker.
+- A harness that binds `run` statically but hijacks its runner's channel in-process to forge gradeability is caught
+  only by the judge; it gains nothing in the grid, which re-imports it.
+
 ## Files
 
 ```
 tasks/coding-agent-harness/
   instruction.md          what the agent is told
   task.toml               task metadata, budgets, resources and the runtime image name
-  breakwater.json         the Breakwater task contract (kind harness, budgets, GPU, development gateway)
-  bindings.example.json   prepared assets per stage (none for this task)
+  tests/breakwater_task.py the task's trusted code (validity battery and its recomputed score)
   environment/            the task runtime image: Dockerfile, agent-policy.json and the /app workspace
                           (harness/agent.py, spec/, smoke/, examples/, selfcheck.py, harness_api.py)
   tests/                  test.sh (verifier entry point; refuses outside Breakwater), smoke/ (the trusted copy

@@ -57,7 +57,7 @@ RUN python3 -m flashinfer download-cubin
 # agent's import path and in `pip list`: the denominator is handed to the numerator, `import flashinfer`
 # is a 1.000, and the task stops measuring anything. It is moved somewhere only the grader looks.
 #
-# The cell overlay (breakwater/cell/Dockerfile.overlay) makes this directory and the cubins root-only, and
+# The cell overlay (the harness grid's images/Dockerfile.overlay) makes this directory and the cubins root-only, and
 # submitted code runs as the worker. A harness runs only in the overlaid cell image, never in this image.
 #
 # The dependencies stay in site-packages. What must not leak is the kernel, not numpy.

@@ -45,25 +45,25 @@ def coverage_gaps(line):
 
 
 def records(path):
-    """Join split syscall text to decode events, never replay execution."""
-    pending = None
+    """Join split syscall text to decode events, never replay execution. A trace of several processes in one file
+    (strace -f without -ff) prefixes each line with its PID; split calls are joined per PID."""
+    pending = {}
     with Path(path).open('rb') as stream:
         for number, line in enumerate(stream, 1):
-            match = re.match(rb'\d+\.\d+\s+(.*)', line.strip())
+            match = re.match(rb'(?:(\d+)\s+)?\d+\.\d+\s+(.*)', line.strip())
             if not match:
                 continue
-            body = match[1]
+            pid, body = match[1], match[2]
             if body.endswith(b'<unfinished ...>'):
-                pending = number, body.removesuffix(b'<unfinished ...>')
+                pending[pid] = number, body.removesuffix(b'<unfinished ...>')
                 continue
             resumed = re.match(rb'<\.\.\. (\w+) resumed>(.*)', body)
-            if resumed and pending:
-                number, prefix = pending
-                body, pending = prefix + resumed[2], None
+            if resumed and pid in pending:
+                number, prefix = pending.pop(pid)
+                body = prefix + resumed[2]
             yield number, body
     # Death in a syscall is possible: preserve its entry without inventing a return.
-    if pending:
-        yield pending
+    yield from pending.values()
 
 
 def visibility_note(body):

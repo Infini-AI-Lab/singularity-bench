@@ -35,7 +35,7 @@ class GuardTests(unittest.TestCase):
         from contract import digest
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);workspace=root/'submission';workspace.mkdir()
-            identity={'task':'open-ended-nano-gpt','run_id':'fixture'};image='sha256:'+'a'*64
+            identity={'task':'example','run_id':'fixture'};image='sha256:'+'a'*64
             old='etc/ld.so.conf.d/00-nvcr-123.conf';new='etc/ld.so.conf.d/00-nvcr-456.conf'
             baseline={'identity':identity,'image_id':image,'workspace_shadows':{},'files':{old:{'sha256':'b'*64}}}
             path=root/'environment-baseline.json';path.write_text(json.dumps(baseline))
@@ -130,12 +130,14 @@ class GuardTests(unittest.TestCase):
             with self.assertRaises(RulesViolation):
                 runtime_check('container',{'specification':{},'files':{'file':{'sha256':'real'}}},Path(temporary)/'result.json')
 
-    def test_nanogpt_normal_negative_failure_is_overridden_to_zero_and_judge_not_called(self):
+    def test_a_rule_violation_without_its_own_reward_scores_zero_not_a_negative_failure_reward(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory=Path(temporary)
-            cfg={'failure_reward':-1.0,'task':'open-ended-nano-gpt'}
-            launch={'external_sha256':'a'*64,'identity':{'task':cfg['task']}}
+            cfg={'failure_reward':-1.0,'task':'example'}
+            launch={'external_sha256':'a'*64,'identity':{'task':cfg['task']},
+                    'framework_revision':verifier.FRAMEWORK_REVISION,'tests_sha256':'t'*64}
             with patch.object(verifier,'REPORTS',directory),patch.object(verifier,'read_json',return_value=cfg), \
+                 patch.object(verifier,'tests_digest',return_value='t'*64), \
                  patch.object(verifier,'verify_seal',side_effect=[launch,{}]), \
                  patch.object(verifier,'check_launch',side_effect=RulesViolation('sglang was replaced by a noop')), \
                  patch.object(verifier.os,'geteuid',return_value=1102),patch.dict(os.environ,{'BREAKWATER_STAGE':'verifier'}), \

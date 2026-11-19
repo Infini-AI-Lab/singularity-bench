@@ -70,6 +70,15 @@ class RecipeTests(unittest.TestCase):
     def test_copied_slime_has_not_changed(self):
         self.assertGreater(verify(), 200)
 
+    def test_the_smoke_recipe_is_the_graded_recipe_with_two_steps_instead_of_the_budget(self):
+        graded, smoke = launch.load_recipe(ROOT / 'recipe.json'), launch.load_recipe(ROOT / 'recipe-smoke.json')
+        timed = ('time_budget_seconds', 'checkpoint_interval_seconds', 'final_save_reserve_seconds')
+        self.assertEqual(smoke['steps'], 2)
+        self.assertEqual({key: value for key, value in graded.items() if key not in (*timed, 'note')},
+                         {key: value for key, value in smoke.items() if key not in ('steps', 'note')})
+        args = launch.train_args(smoke, Path('/input'), Path('/data'), Path('/output'))
+        self.assertEqual(args[args.index('--num-rollout') + 1], '2')
+
     def test_evaluation_launch_reuses_the_recipe_on_two_gpus_without_training(self):
         recipe = launch.load_recipe(ROOT / 'recipe.json')
         args = evaluate.evaluation_command(Path('/input'), Path('/data/amc.jsonl'), Path('/output'))

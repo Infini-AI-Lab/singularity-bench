@@ -1,4 +1,4 @@
-"""Install the audited native release, with pinned checksums for both fleet architectures."""
+"""Install the audited native release, with pinned checksums for both host architectures (x86-64 and arm64)."""
 import hashlib
 from pathlib import Path
 import platform

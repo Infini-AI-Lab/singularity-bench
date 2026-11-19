@@ -1,0 +1,43 @@
+# The held-out evaluation runtime as an Apptainer image: a step-for-step translation of evaluation/Dockerfile (same
+# base image, pins and steps) for hosts without Docker: the pinned multi-architecture Miles image (CUDA 13, SGLang,
+# PyTorch) at Miles 53f5d942, with sglang-context-clip.patch applied. Build it with evaluation/build-apptainer.sh on
+# the GB300 (arm64) host; evaluate_checkpoint.py runs it with --runtime apptainer --eval-sif.
+Bootstrap: docker
+From: radixark/miles@sha256:b8e4671c03adda98cc6165d5bbee3b322ce6baf7a8601dfe18a40da8bca376b8
+
+%files
+    sglang-context-clip.patch /opt/build-inputs/sglang-context-clip.patch
+
+%environment
+    export PYTHONUNBUFFERED=1
+    export CUDA_DEVICE_MAX_CONNECTIONS=1
+    export TOKENIZERS_PARALLELISM=false
+    export TORCH_CUDA_ARCH_LIST="10.3"
+    export CMAKE_CUDA_ARCHITECTURES=103
+    export MAX_JOBS=8
+
+%post -c /bin/bash
+    set -euo pipefail
+    # %post's /tmp is the build host's, often small: temporary files go to a directory in the image tree instead.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    cd /root/miles
+    git cat-file -e '53f5d94224b7fc584857eb2aba68ffdd364dc139^{commit}' || git fetch origin 53f5d94224b7fc584857eb2aba68ffdd364dc139
+    git checkout --detach 53f5d94224b7fc584857eb2aba68ffdd364dc139
+    python3 -m pip install --no-deps -e .
+    test "$(python3 docker/image_inputs.py)" = 866414f4e508ee2ce12ef294560689010642754952a6e9795fc8c800fd326776
+
+    # The policy server clips each request's output budget to the context left after exact tokenization
+    # (EVAL_CONTEXT_LIMIT=65536, set by evaluate_checkpoint.py); it never truncates the conversation.
+    cd /sgl-workspace/sglang
+    git apply --check /opt/build-inputs/sglang-context-clip.patch
+    git apply /opt/build-inputs/sglang-context-clip.patch
+    rm -rf /opt/build-inputs
+    cd /
+
+    # Records the package set, architecture and source commits of the built runtime (the Dockerfile's ENV applies).
+    export PYTHONUNBUFFERED=1 CUDA_DEVICE_MAX_CONNECTIONS=1 TOKENIZERS_PARALLELISM=false TORCH_CUDA_ARCH_LIST="10.3" \
+        CMAKE_CUDA_ARCHITECTURES=103 MAX_JOBS=8
+    python3 -m pip freeze > /opt/runtime-packages.txt
+    python3 -c 'import json,platform,subprocess,torch; from pathlib import Path; roots={"miles":"/root/miles","sglang":"/sgl-workspace/sglang","megatron":"/root/Megatron-LM"}; commits={k:subprocess.check_output(["git","-C",v,"rev-parse","HEAD"],text=True).strip() for k,v in roots.items()}; Path("/opt/eval-runtime.json").write_text(json.dumps({"architecture":platform.machine(),"torch":torch.__version__,"cuda":torch.version.cuda,"torch_cuda_architectures":torch.cuda.get_arch_list(),"source_commits":commits},indent=2)+"\n")'
+    rm -rf /opt/build-tmp

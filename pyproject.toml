@@ -1,0 +1,17 @@
+# Breakwater reads its own files and the tasks from this checkout: run it from the repository root
+# (python3 -m breakwater) or install it in editable mode (pip install -e .) for the breakwater command.
+[project]
+name = "breakwater"
+version = "0.1.0"
+description = "Breakwater: run AI agents on open-ended tasks under protected evaluation"
+requires-python = ">=3.11"
+
+[project.scripts]
+breakwater = "breakwater.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["breakwater"]

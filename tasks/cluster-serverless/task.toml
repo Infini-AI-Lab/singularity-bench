@@ -1,9 +1,9 @@
 schema_version = "1.1"
 
-# Harbor task declaration. The task runs only under Breakwater (breakwater/run.py): its contract (stage budgets,
-# resources, workspace and submission mounts, fleet options) is breakwater.json, and tests/test.sh refuses any
-# other launch path. The GPUs are not in the task containers: they are the remote 16-GPU fleet (four nodes of
-# four GB300 GPUs) that bin/cluster.sh brings up before the run.
+# Harbor task declaration. The task runs only under Breakwater (python3 -m breakwater run): its contract (stage
+# budgets, resources, workspace and submission mounts, fleet options) is the [breakwater] tables below, and
+# tests/test.sh refuses any other launch path. The GPUs are not in the task containers: they are the remote 16-GPU
+# fleet (four nodes of four GB300 GPUs) that bin/cluster.sh brings up before the run.
 
 [task]
 name = "singularity-bench/cluster-serverless"
@@ -13,13 +13,13 @@ keywords = ["cluster", "serving", "inference", "scheduling", "caching", "slo", "
 
 [metadata]
 author_name = "InfiniAILab"
-author_email = "yangzho6@andrew.cmu.edu"
+author_email = "krisha2@andrew.cmu.edu"
 difficulty_explanation = "Build, within 4 hours and from a naive policy, the control plane that serves 28 models (about 5.4 TiB of weights, more than the fleet's serving memory) on 16 GB300 GPUs across four nodes; maximize strict SLO attainment times per-model completion under mixed online and batch traffic at three load levels"
 category = "Machine Learning Systems"
 tags = ["Cluster Management", "Serverless Inference", "vLLM", "Scheduling", "Multi-Node", "GB300"]
 
 [verifier]
-# The integrity judge's budget (judge_timeout_sec in breakwater.json). The verifier container is read-only and
+# The integrity judge's budget (as [breakwater.judge] timeout_sec). The verifier container is read-only and
 # has no GPU: it recomputes every cell's utility from the sealed driver records and the private traces, then
 # runs the integrity judge. The three graded cells run before it, in the intermediate container, within
 # evaluation_timeout_sec (six hours).
@@ -32,10 +32,80 @@ timeout_sec = 14400.0
 
 [environment]
 # The task runtime image (environment/Dockerfile). CPU only: the agent reaches the fleet over HTTP through
-# /app/fleet.json. Authoring gets 8 CPUs, 32 GiB and 512 processes (agent_resources in breakwater.json).
+# /app/fleet.json. Authoring gets 8 CPUs, 32 GiB and 512 processes ([breakwater.agent_resources]).
 docker_image = "cluster-serverless:local"
 build_timeout_sec = 3600.0
 cpus = 8
 memory_mb = 32768
 storage_mb = 40960
 gpus = 0
+
+# Breakwater: see breakwater/SPEC.md. [agent] timeout_sec is the authoring budget; [environment] gpus,
+# gpu_types and workdir apply too.
+[breakwater]
+name = "cluster-serverless"
+failure_reward = 0.0
+agent_deadline = "evaluate"
+review_profile = "indexed"
+
+[breakwater.judge]
+timeout_sec = 10800
+
+[breakwater.workspace]
+source = "image"
+snapshot_home = true
+submission_mount = "/submission"
+
+[breakwater.workspace.shadow_policy]
+packages = []
+hooks = []
+environments = false
+
+[breakwater.authoring]
+extra_networks = ["bridge"]
+
+[breakwater.evaluation]
+timeout_sec = 21600
+ports = [8000]
+network = "bridge"
+cap_add = ["NET_ADMIN", "NET_RAW"]
+
+[breakwater.evaluation.worker_env]
+PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+HOME = "/home/worker"
+TMPDIR = "/tmp/worker"
+BREAKWATER_WORKDIR = "/app"
+LANG = "C.UTF-8"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+
+[breakwater.scoring]
+recomputed = ["raw/cluster/records-*.jsonl"]
+
+[breakwater.resources]
+cpus = 16
+cpuset = "0-15"
+memory_mb = 40960
+nofile = 65536
+shm_size = "1g"
+
+[breakwater.agent_resources]
+cpus = 8
+memory_mb = 32768
+pids = 512
+
+# The task's own options (tests/breakwater_host.py and the coordinator check them).
+[breakwater.options]
+repeats = 1
+allow_unqualified = true
+time_scale = 1
+
+# The operator's fleet: its private manifest and public view (bin/cluster.sh up prints them), the fleet's grader token
+# (held: only the host hooks and the coordinator's private files get it) and the development receipt key (public).
+[breakwater.host]
+module = "tests/breakwater_host.py"
+
+[breakwater.operator]
+inputs = ["fleet", "public-fleet"]
+values = { receipt-key = "CLUSTER_RECEIPT_KEY" }
+secrets = { grader-token = "CLUSTER_GRADER_TOKEN" }

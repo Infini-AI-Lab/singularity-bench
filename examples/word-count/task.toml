@@ -1,0 +1,48 @@
+version = "1.0"
+
+[metadata]
+author_name = "Breakwater"
+difficulty_explanation = "A minimal Breakwater task: write a word counter. CPU only, no network, a few minutes."
+category = "Example"
+tags = ["Example", "CPU"]
+
+[agent]
+timeout_sec = 900.0
+
+[environment]
+docker_image = "word-count:local"
+gpus = 0
+workdir = "/app"
+
+# Breakwater: see breakwater/SPEC.md.
+[breakwater]
+name = "word-count"
+failure_reward = 0.0
+agent_deadline = "evaluate"
+review_profile = "indexed"
+
+[breakwater.judge]
+timeout_sec = 1800
+
+[breakwater.workspace]
+source = "task"
+excludes = ["/README.md", "/environment", "/solution"]
+
+[breakwater.evaluation]
+timeout_sec = 600
+runners = "runners"
+
+[breakwater.evaluation.worker_env]
+PATH = "/usr/local/bin:/usr/bin:/bin"
+HOME = "/tmp/worker"
+TMPDIR = "/tmp/worker"
+PYTHONDONTWRITEBYTECODE = "1"
+
+[breakwater.scoring]
+recomputed = ["raw/counts.jsonl"]
+
+[[breakwater.assets]]
+name = "texts"
+source = "word-count/texts.jsonl"
+target = "/private/word-count/texts.jsonl"
+stages = ["evaluation", "verifier"]

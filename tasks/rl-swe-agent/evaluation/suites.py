@@ -81,8 +81,14 @@ def pin_image(content, identity):
     return replacement
 
 
+def image_id(reported):
+    """An image ID as Docker reports it (podman leaves out the sha256: prefix)."""
+    reported = reported.strip()
+    return reported if reported.startswith('sha256:') or not reported else 'sha256:' + reported
+
+
 def prepare_suites(paths, output, deadline, sandbox_env, *, image_manifest=None, image_workers=8,
-                   task_platform=None, exclude=None):
+                   task_platform=None, exclude=None, engine='docker'):
     """Copy the exact pinned tasks and resolve each task's image once.
 
     exclude maps a suite to task names left out of it (the SWE-bench Verified exclusions, and the tasks
@@ -162,14 +168,14 @@ def prepare_suites(paths, output, deadline, sandbox_env, *, image_manifest=None,
         identity = previous['image_id'] if previous else tag
         inspected = None
         if identity:
-            inspected = deadline.run(['docker', 'image', 'inspect', identity, '--format', '{{.Id}}'],
+            inspected = deadline.run([engine, 'image', 'inspect', identity, '--format', '{{.Id}}'],
                                      capture_output=True, text=True, env=sandbox_env)
         if inspected is None or inspected.returncode:
             if previous:
                 raise RuntimeError(f'{key}: pinned image missing; refusing substitution')
             with (output / f'image-{suite}-{name}.log').open('w') as log:
                 if tag:
-                    command = ['docker', 'pull', *(['--platform', task_platform] if task_platform else []), tag]
+                    command = [engine, 'pull', *(['--platform', task_platform] if task_platform else []), tag]
                     identity = tag
                 else:
                     context = target / 'environment'
@@ -178,16 +184,16 @@ def prepare_suites(paths, output, deadline, sandbox_env, *, image_manifest=None,
                     # Build the task's own context unchanged; image-cache.json records the resulting ID.
                     digest = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()[:20]
                     identity = f'rl-swe-agent-eval-task:{digest}'
-                    command = ['docker', 'build', *(['--platform', task_platform] if task_platform else []), '-t', identity, str(context)]
+                    command = [engine, 'build', *(['--platform', task_platform] if task_platform else []), '-t', identity, str(context)]
                 deadline.run(command, cap=1800, stdout=log, stderr=subprocess.STDOUT,
                              check=True, env=sandbox_env)
-            inspected = deadline.run(['docker', 'image', 'inspect', identity, '--format', '{{.Id}}'],
+            inspected = deadline.run([engine, 'image', 'inspect', identity, '--format', '{{.Id}}'],
                                      check=True, capture_output=True, text=True, env=sandbox_env)
-        identity = inspected.stdout.strip()
+        identity = image_id(inspected.stdout)
         if not re.fullmatch(r'sha256:[0-9a-f]{64}', identity):
             raise ValueError(f'{key}: invalid Docker image identity')
         if task_platform:
-            actual_platform = deadline.run(['docker', 'image', 'inspect', identity,
+            actual_platform = deadline.run([engine, 'image', 'inspect', identity,
                 '--format', '{{.Os}}/{{.Architecture}}'], check=True, capture_output=True,
                 text=True, env=sandbox_env).stdout.strip()
             if actual_platform != task_platform:
@@ -266,7 +272,7 @@ def stop_processes(processes, deadline):
             proc.wait(timeout=deadline.remaining(2, cleanup=True))
 
 
-def cleanup_sandboxes(job_dirs, deadline, sandbox_env):
+def cleanup_sandboxes(job_dirs, deadline, sandbox_env, engine='docker'):
     # Harbor session IDs are trial_name + '__env'. Match exact Compose labels,
     # never prune the shared daemon or stop unrelated trials.
     def project_name(name):
@@ -278,6 +284,15 @@ def cleanup_sandboxes(job_dirs, deadline, sandbox_env):
                 for job_dir in job_dirs for trial in job_dir.iterdir()
                 if trial.is_dir() and (trial / 'config.json').is_file()}
     if not projects:
+        return
+    if engine == 'podman':
+        # worker/podman/podman_env.py names each trial's one container harbor-PROJECT and creates no networks.
+        result = deadline.run(['podman', 'ps', '-a', '--format', '{{.Names}}'], cap=10, cleanup=True,
+                              capture_output=True, text=True, check=True, env=sandbox_env)
+        names = [name for name in result.stdout.split() if name in {'harbor-' + project for project in projects}]
+        if names:
+            deadline.run(['podman', 'rm', '--force', '--ignore', *names], cap=15, cleanup=True,
+                         capture_output=True, check=True, env=sandbox_env)
         return
     for list_args, remove_args in [
         (['ps', '-a'], ['rm', '-f']),

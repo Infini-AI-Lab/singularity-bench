@@ -1,18 +1,24 @@
-"""Operator-side HTTP code judge. Each test runs in a fresh isolated Docker container.
+"""Operator-side HTTP code judge. Each test runs in a fresh isolated container.
 
-Run on a CPU host with Docker, outside the GPU containers. Generated code never sees
-the Docker socket or the grading files. RL invocations receive test inputs only;
-expanded benchmark test programs run inside the CPU sandbox. Only this trusted
-service accesses Docker. Bind to loopback by default; a non-loopback bind requires
+Docker (--image): run on a CPU host with Docker, outside the GPU containers. Generated code
+never sees the Docker socket or the grading files. Only this trusted service accesses
+Docker. Apptainer (--apptainer SIF, for hosts without Docker): each test runs in a fresh
+container of the CPU image as a SIF, with no network, a private PID namespace and /tmp,
+and per-process limits in place of Docker's (address space, processes, files, CPU time).
+RL invocations receive test inputs only; expanded benchmark test programs run inside the
+CPU sandbox. Bind to loopback by default; a non-loopback bind requires
 MIDTRAIN_CODE_SANDBOX_TOKEN. Keep the service reachable from the evaluation stage only.
 """
 import argparse
+import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import math
 import os
 from pathlib import Path
 import re
+import shutil
+import signal
 import subprocess
 import tempfile
 import threading
@@ -94,27 +100,64 @@ def humanevalplus_program(code, label, marker):
             f'print({marker!r})\n')
 
 
+RUNNER = ('import io, json, sys; p = json.load(sys.stdin); '
+          'sys.stdin = io.TextIOWrapper(io.BytesIO(p["stdin"].encode())); '
+          'exec(compile(p["code"], "sandbox.py", "exec"))')
+# Docker's container limits as per-process limits (Apptainer, unprivileged): 512 MiB of address space, 32 processes
+# (counted in the container's own user namespace), 64 files, 1 MiB per file, and CPU time as the wall-clock budget.
+LIMITS = ('import resource; [resource.setrlimit(limit, (value, value)) for limit, value in ('
+          '(resource.RLIMIT_AS, 512 << 20), (resource.RLIMIT_NPROC, 32), (resource.RLIMIT_NOFILE, 64), '
+          '(resource.RLIMIT_FSIZE, 1 << 20), (resource.RLIMIT_CPU, {cpu}))]; ')
+
+
 class Judge:
-    def __init__(self, image, workers=16, timeout=6.0):
-        # Freeze the operator-built CPU image rather than following a mutable tag per test.
-        self.image = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', image], text=True).strip()
+    def __init__(self, image, workers=16, timeout=6.0, apptainer=None):
+        if apptainer:
+            # The SIF, identified by its digest (it cannot change under a running service: reads go to this copy).
+            self.apptainer = [shutil.which('apptainer') or shutil.which('singularity'), str(Path(apptainer).resolve())]
+            if not self.apptainer[0]:
+                raise RuntimeError('--apptainer needs apptainer on the host')
+            digest = hashlib.sha256()
+            with open(self.apptainer[1], 'rb') as stream:
+                for block in iter(lambda: stream.read(1 << 20), b''):
+                    digest.update(block)
+            self.image = 'sha256:' + digest.hexdigest()
+        else:
+            # Freeze the operator-built CPU image rather than following a mutable tag per test.
+            self.apptainer = None
+            self.image = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', image],
+                                                 text=True).strip()
         self.timeout = timeout
         self.slots = threading.BoundedSemaphore(workers)
+
+    def command(self, name, timeout):
+        if self.apptainer:
+            return [self.apptainer[0], 'exec', '--userns', '--containall', '--no-home', '--cleanenv',
+                    '--net', '--network', 'none', '--pwd', '/tmp',
+                    '--env', 'OPENBLAS_NUM_THREADS=1,OMP_NUM_THREADS=1,MKL_NUM_THREADS=1', self.apptainer[1],
+                    'python3', '-I', '-c', LIMITS.format(cpu=max(1, math.ceil(timeout))) + RUNNER]
+        return ['docker', 'run', '--rm', '-i', '--name', name,
+                '--network', 'none', '--read-only', '--cap-drop', 'ALL',
+                '--security-opt', 'no-new-privileges', '--user', '65534:65534',
+                '--pids-limit', '32', '--memory', '512m', '--memory-swap', '512m', '--cpus', '1',
+                '--tmpfs', '/tmp:rw,noexec,nosuid,size=32m',
+                '--ulimit', 'nofile=64:64', '--ulimit', 'fsize=1048576:1048576',
+                '-e', 'OPENBLAS_NUM_THREADS=1', '-e', 'OMP_NUM_THREADS=1', '-e', 'MKL_NUM_THREADS=1',
+                self.image, 'python3', '-I', '-c', RUNNER]
+
+    def kill(self, process):
+        """Kill a test's container: its whole process group (Apptainer), or the docker client (Docker removes it)."""
+        try:
+            os.killpg(process.pid, signal.SIGKILL) if self.apptainer else process.kill()
+        except ProcessLookupError:
+            pass
+        process.wait()
 
     def execute(self, code, input_text, *, timeout=None):
         with self.slots, tempfile.TemporaryDirectory(prefix='midtrain-code-') as tmp:
             name = 'midtrain-code-' + uuid.uuid4().hex
-            command = ['docker', 'run', '--rm', '-i', '--name', name,
-                       '--network', 'none', '--read-only', '--cap-drop', 'ALL',
-                       '--security-opt', 'no-new-privileges', '--user', '65534:65534',
-                       '--pids-limit', '32', '--memory', '512m', '--memory-swap', '512m', '--cpus', '1',
-                       '--tmpfs', '/tmp:rw,noexec,nosuid,size=32m',
-                       '--ulimit', 'nofile=64:64', '--ulimit', 'fsize=1048576:1048576',
-                       '-e', 'OPENBLAS_NUM_THREADS=1', '-e', 'OMP_NUM_THREADS=1', '-e', 'MKL_NUM_THREADS=1',
-                       self.image, 'python3', '-I', '-c',
-                       'import io, json, sys; p = json.load(sys.stdin); '
-                       'sys.stdin = io.TextIOWrapper(io.BytesIO(p["stdin"].encode())); '
-                       'exec(compile(p["code"], "sandbox.py", "exec"))']
+            limit = self.timeout if timeout is None else timeout
+            command = self.command(name, limit)
             output = Path(tmp) / 'stdout'
             payload = Path(tmp) / 'stdin'
             # Expanded tests can exceed execve's per-argument limit. Transfer code
@@ -122,27 +165,27 @@ class Judge:
             payload.write_text(json.dumps({'code': code, 'stdin': input_text}))
             try:
                 with payload.open('rb') as stdin, output.open('wb') as stdout:
-                    process = subprocess.Popen(command, stdin=stdin, stdout=stdout, stderr=subprocess.DEVNULL)
-                    deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
+                    process = subprocess.Popen(command, stdin=stdin, stdout=stdout, stderr=subprocess.DEVNULL,
+                                               start_new_session=True)
+                    deadline = time.monotonic() + limit
                     try:
                         while process.poll() is None:
                             if time.monotonic() >= deadline or output.stat().st_size > (1 << 20):
-                                process.kill()
-                                process.wait()
+                                self.kill(process)
                                 return None
                             time.sleep(0.02)
                     finally:
                         if process.poll() is None:
-                            process.kill()
-                            process.wait()
-                    if process.returncode == 125:
+                            self.kill(process)
+                    if process.returncode == 125 and not self.apptainer:
                         raise RuntimeError('Docker could not launch the code sandbox')
                     if process.returncode != 0 or output.stat().st_size > (1 << 20):
                         return None
                 return output.read_text(errors='replace')
             finally:
-                subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL, timeout=30)
+                if not self.apptainer:
+                    subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, timeout=30)
 
     def score(self, code, label):
         if not isinstance(code, str) or len(code) > (1 << 20):
@@ -186,7 +229,9 @@ class Judge:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--image', default='midtrain-code-sandbox:local')
+    parser.add_argument('--image', default='midtrain-code-sandbox:local', help='the CPU image (Docker)')
+    parser.add_argument('--apptainer', metavar='SIF', help='run each test in this SIF of the CPU image instead '
+                        '(apptainer-sandbox.def), on a host without Docker')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=18081)
     parser.add_argument('--workers', type=int, default=16)
@@ -194,7 +239,7 @@ def main():
     token = os.environ.get('MIDTRAIN_CODE_SANDBOX_TOKEN')
     if args.host not in ('127.0.0.1', 'localhost') and not token:
         parser.error('non-loopback binds require MIDTRAIN_CODE_SANDBOX_TOKEN')
-    judge = Judge(args.image, args.workers)
+    judge = Judge(args.image, args.workers, apptainer=args.apptainer)
     # Infrastructure check, including an actual container execution.
     if judge.execute('print(2 + 3)', '') != '5\n':
         raise RuntimeError('code sandbox self-check failed')

@@ -5,8 +5,8 @@ r"""Remove every agent CLI from a task container before submitted code runs in i
 A task image may contain an agent CLI (for example Claude Code with Node). Submitted code sharing the
 container could otherwise hand its work to that CLI -- `claude -p "<task>"` pointed at the stage's own model
 through a small local shim -- and the evaluation would measure the CLI instead of the submission; a driver
-model could also find one on PATH. The author image runs this before installing its one assigned CLI, and
-every grid cell runs it before a submitted harness starts.
+model could also find one on PATH. The author image runs this before installing its one assigned CLI, and a
+custom launcher that runs a submitted agent runs it before that agent starts.
 
 The list is deliberately broader than what the task images contain: an image that pre-bakes another agent
 must not hand it to every submission. What goes is the installation, not just the command: an npm entry
@@ -25,7 +25,8 @@ import sys
 # Names are unambiguous on purpose: deleting a same-named tool a task needs would turn a void into a zero.
 CLIS = ("claude", "codex", "kimi", "kimi-cli", "grok", "mini", "mini-extra", "mini-swe-agent", "aider",
         "opencode", "gemini", "qwen", "cursor-agent", "openhands", "sweagent")
-# No downstream task needs a JavaScript runtime, and with one a submission could still run a JS agent.
+# A task image that runs submitted code needs no JavaScript runtime, and with one a submission could still run a JS
+# agent.
 RUNTIMES = ("node", "nodejs", "npm", "npx", "corepack", "bun", "deno")
 MODULES = ("minisweagent", "kimi_cli", "aider", "openhands", "sweagent")
 # Where these tools keep themselves beyond their entry points.

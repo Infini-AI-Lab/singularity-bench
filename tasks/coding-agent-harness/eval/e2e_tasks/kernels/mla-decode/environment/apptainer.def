@@ -1,0 +1,100 @@
+# The mla-decode task runtime (a downstream task of the coding-agent-harness grid) as an Apptainer image: a
+# step-for-step translation of environment/Dockerfile (same base image, pins and steps) for hosts without Docker.
+# Build it with environment/build-apptainer.sh, which stages the files the Docker build takes from its context
+# (environment/). Apptainer pulls the base image for the build host's architecture, and the build chooses its CUDA
+# stack from that architecture as the Dockerfile does; GB300 hosts are arm64 and get CUDA 13 and torch cu130.
+Bootstrap: docker
+From: nvidia/cuda:12.8.1-devel-ubuntu24.04
+
+# %files: the oracle's pinned requirements (kept at /opt, as in the Dockerfile) and the agent's starting /app: the
+# vectorized torch reference, the performance self-assessment tool and the stub.
+%files
+    oracle-requirements.txt /opt/oracle-requirements.txt
+    reference.py /app/reference.py
+    measure.py /app/measure.py
+    mla_decode.py /app/mla_decode.py
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export FLASHINFER_CUBIN_DIR=/opt/flashinfer-cubins
+
+%post -c /bin/bash
+    set -euo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    # %post's /tmp is the build host's: pip's downloads go to a directory in the image instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    # Python and build tools (apt sources are removed at the end).
+    apt-get -o APT::Sandbox::User=root update
+    # An unprivileged build without /etc/subuid ranges maps only the calling user (as root), and dpkg cannot give
+    # package files other owners ("error setting ownership ... Invalid argument"). There, package installs run under
+    # fakeroot, which records those ownership changes instead of making them (every file stays root's); it is removed
+    # at the end of %post.
+    probe=$(mktemp /root/.chown-probe.XXXXXX)
+    if chown 1:1 "${probe}" 2>/dev/null; then fakeroot=""; else
+        apt-get -o APT::Sandbox::User=root install -y --no-install-recommends fakeroot
+        fakeroot="env FAKEROOTDONTTRYCHOWN=1 fakeroot"
+        echo "root-mapped build: package installs run under fakeroot"
+    fi
+    rm -f "${probe}"
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        python3 python3-pip python3-dev git curl ca-certificates build-essential iptables iproute2
+
+    # torch, the agent's CuTe DSL and the Blackwell oracle, chosen from the build host's architecture. x86_64: CUDA 12.8
+    # and torch cu128, where the grader's vendored Hopper oracle (an x86_64 build against CUDA 12) loads. aarch64: the
+    # CUDA 13 toolkit, whose nvcc targets GB300's sm_103, and torch cu130; there the grader's oracles are FlashInfer and
+    # the pinned FA4 CuTe MLA kernel. nvidia-cutlass-dsl is pinned to 4.7.1, not the 4.8.0.dev0 flashinfer-python would
+    # pull. The echo records the choice in the build log.
+    case "$(uname -m)" in
+      aarch64) IDX=cu130; CUDA_PY=13.4.1; CUDA_BIND=13.4.2; DSL='nvidia-cutlass-dsl[cu13]==4.7.1'
+               apt-get -o APT::Sandbox::User=root update
+               ${fakeroot} apt-get -o APT::Sandbox::User=root install -y --no-install-recommends cuda-toolkit-13-0
+               ln -sfn /usr/local/cuda-13.0 /usr/local/cuda ;;
+      *)       IDX=cu128; CUDA_PY=12.9.7; CUDA_BIND=12.9.8; DSL='nvidia-cutlass-dsl==4.7.1' ;;
+    esac
+    echo "build host $(uname -m) -> torch ${IDX}, ${DSL}, nvcc $(nvcc --version | tail -1)"
+    pip3 install --break-system-packages --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/${IDX}
+    pip3 install --break-system-packages --no-cache-dir "${DSL}" "cuda-python==${CUDA_PY}" "cuda-bindings==${CUDA_BIND}" -r /opt/oracle-requirements.txt
+    python3 -c "import torch, cutlass, cutlass.cute, flashinfer, numpy; \
+        print('arch', __import__('platform').machine(), '| torch', torch.__version__, \
+              '| gpu archs', torch.cuda.get_arch_list(), '| flashinfer', flashinfer.__version__)"
+
+    # Bake FlashInfer's prebuilt cubins while there is a network: its trtllm-gen backends load them at run time, and
+    # grading has no network. The cutlass and cuTile backends compile from bundled sources with nvcc.
+    export FLASHINFER_CUBIN_DIR=/opt/flashinfer-cubins
+    python3 -m flashinfer download-cubin
+
+    # Seal the oracle. On sm_10x the grader's oracle is FlashInfer, and every reward is a ratio against it, so the
+    # package must not be on the agent's import path or in pip list: it moves to /opt/oracle-libs, where only the grader
+    # looks, and its dependencies stay in site-packages. The harness grid's apptainer_cell.py hides that directory and
+    # the cubins from the harness and submitted code.
+    PKG="$(python3 -c 'import flashinfer, os; print(os.path.dirname(os.path.abspath(flashinfer.__file__)))')"
+    SITE="$(dirname "$PKG")"
+    mkdir -p /opt/oracle-libs
+    for d in "$SITE"/flashinfer*; do [ -e "$d" ] || continue; mv "$d" /opt/oracle-libs/; done
+    if python3 -c 'import flashinfer' 2>/dev/null; then
+        echo "FAIL: flashinfer is still importable without /opt/oracle-libs -- this image would hand"
+        echo "      the agent the grader's own oracle. Find the remaining copy and move it too."
+        exit 1
+    fi
+    PYTHONPATH=/opt/oracle-libs python3 -c "import flashinfer; \
+        print('oracle-only flashinfer', flashinfer.__version__, '-> /opt/oracle-libs')"
+
+    # Process tools (ps, kill, ...) for the harness and the commands it runs.
+    apt-get -o APT::Sandbox::User=root update
+    ${fakeroot} apt-get -o APT::Sandbox::User=root install -y procps
+
+    # Strip apt sources last.
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list /etc/apt/sources.list.d
+    rm -rf /opt/build-tmp
+
+    # The harness grid's apptainer_cell.py seeds the harness's workspace from the image's /app and starts commands there
+    # (Apptainer has no WORKDIR).
+    mkdir -p /app
+    cd /app
+
+    # The build's own fakeroot (above), when it needed one, is not part of the image.
+    if [ -n "${fakeroot}" ]; then dpkg --purge fakeroot libfakeroot; fi

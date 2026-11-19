@@ -32,7 +32,7 @@ GPQA-Diamond.
 | Training stack | Megatron-LM (patched, `/opt/Megatron-LM`) without a Hugging Face checkpoint converter; PyTorch, Transformer Engine, Apex, SGLang 0.5.15.post1 and slime on CUDA 13 |
 | Corpora | 15 pinned public datasets, about 1.1 TB, under `/app/data`, read-only |
 | Development evaluations | `evals/` ([README](evals/README.md)): math, science and code generation suites on `/app/data/dev_evals`, and the submission check |
-| Workspace | `/app`, writable: a copy of this directory without `README.md`, `tests/`, `breakwater.json`, `bindings.example.json` and the prepared data |
+| Workspace | `/app`, writable: a copy of this directory without `README.md`, `tests/`, `task.toml` and the prepared data |
 | Network | no internet for the agent's commands (local services only); the coding agent reaches its model only through Breakwater's author gateway |
 
 | `data/` directory | Source | Derivation |
@@ -72,7 +72,7 @@ alter their results, leave no process running, and do not replace or shadow inst
 | Evaluation (RL stage and post-RL evaluation) | 86,400 s; the RL stage itself has an 18,000 s cap | the same 4 x GB300 |
 | Verifier and integrity judge | 10,800 s | no GPU |
 
-The budgets and container settings are in [`breakwater.json`](breakwater.json).
+The budgets and container settings are in the `[breakwater]` tables of [`task.toml`](task.toml).
 
 ## Scoring
 
@@ -179,9 +179,22 @@ the author image, so the RL stage uses exactly the runtime the agent had.
 
 ## Running under Breakwater
 
-**1. Start the code sandbox** on the host. The RL stage's coding rewards and the HumanEval+
-evaluation call it; the evaluation container reaches it as `host.docker.internal` (the Docker bridge
-gateway, usually `172.17.0.1`), and the agent can never reach it. A non-loopback bind needs a token:
+**1. Start the code sandbox** on the host. The RL stage's coding rewards and the HumanEval+ evaluation call it, and
+the agent can never reach it.
+
+On Apptainer (the default backend), build the CPU image as a SIF and run the sandbox on the node that runs the
+launcher, on loopback; the evaluation's coordinator reaches it at the same URL through a relay:
+
+```bash
+apptainer build --fakeroot midtrain-code-sandbox.sif tasks/midtrain-for-rl/tests/rl_eval/apptainer-sandbox.def
+export MIDTRAIN_CODE_SANDBOX_TOKEN=$(openssl rand -hex 32)
+python3 tasks/midtrain-for-rl/tests/rl_eval/sandbox.py --apptainer midtrain-code-sandbox.sif \
+  --host 127.0.0.1 --port 18081 &
+export MIDTRAIN_CODE_SANDBOX_URL=http://127.0.0.1:18081
+```
+
+On Docker, the evaluation container reaches it as `host.docker.internal` (the Docker bridge gateway, usually
+`172.17.0.1`), and the non-loopback bind needs the token:
 
 ```bash
 export MIDTRAIN_CODE_SANDBOX_TOKEN=$(openssl rand -hex 32)
@@ -190,13 +203,17 @@ python3 tasks/midtrain-for-rl/tests/rl_eval/sandbox.py --image midtrain-code-san
 export MIDTRAIN_CODE_SANDBOX_URL=http://host.docker.internal:18081
 ```
 
-`run.py` refuses to start unless both variables are set, and forwards them only to the evaluation
-stage. With `MIDTRAIN_CODE_SANDBOX_URL` set, `prepare.sh --check` also probes the sandbox from a
+The launcher refuses to start unless both variables are set, and forwards them only to the evaluation
+stage.
+
+To test a setup cheaply, `breakwater run --smoke` replaces the five-hour RL stage with two optimizer updates
+(`tests/rl_eval/recipe-smoke.json`, otherwise the graded recipe) followed by the full post-RL evaluation; the run
+is labeled a smoke run and its reward is not a benchmark score. With `MIDTRAIN_CODE_SANDBOX_URL` set, `prepare.sh --check` also probes the sandbox from a
 container.
 
-**2. Bindings.** Copy [`bindings.example.json`](bindings.example.json) and point each `source` at the
-prepared input, relative to `--asset-root`. With the default `prepare.sh` layout the asset root is
-`tasks/midtrain-for-rl` and the example sources work unchanged:
+**2. Assets.** The task declares its inputs in `task.toml` (`[[breakwater.assets]]`), with sources relative to
+`--asset-root`. With the default `prepare.sh` layout the asset root is `tasks/midtrain-for-rl` and the declared
+sources work unchanged:
 
 | Source | Target | Stages |
 | --- | --- | --- |
@@ -206,22 +223,37 @@ prepared input, relative to `--asset-root`. With the default `prepare.sh` layout
 | `private/rl-data` | `/private/midtrain-rl-data` | evaluation, verifier |
 | `private/eval-data` | `/private/midtrain-eval` | evaluation, verifier |
 
-Targets and stages are fixed by the task contract. `run.py` resolves every source and requires it to
-stay under the asset root; if an input is a symlink to another disk, use an asset root that contains
-the resolved inputs.
+Targets and stages are fixed by the task contract; a different layout can be passed with `--bindings FILE`.
+The launcher resolves every source and requires it to stay under the asset root; if an input is a symlink to
+another disk, use an asset root that contains the resolved inputs.
 
 **3. Launch**, with `FIREWORKS_API_KEY` set for the integrity judge and a fresh run directory outside
-the task directory and the asset root:
+the task directory and the asset root. On Apptainer ([breakwater/apptainer/README.md](../../breakwater/apptainer/README.md)), `prepare.sh` builds the two
+SIFs and prepares every input without Docker (the grading inputs in the task runtime, with `tests/rl_eval` at
+`/opt/midtrain-rl`, as the Docker RL-preparation image has it); start the code sandbox from its SIF as in step 1 and
+launch with the Apptainer backend:
 
 ```bash
-python3 breakwater/run.py --task tasks/midtrain-for-rl \
+export PREPARE_RUNTIME=apptainer TASK_SIF=midtrain-for-rl.sif SANDBOX_SIF=midtrain-code-sandbox.sif
+bash tasks/midtrain-for-rl/prepare.sh            # or --images-only, --data-only, --private-data, --check
+python3 -m breakwater install-cli --dest CLI_DIR        # once: the pinned agent CLI (--agent codex for Codex)
+python3 -m breakwater install-judge --dest JUDGE_DIR    # once: the pinned judge runner
+python3 -m breakwater run --task tasks/midtrain-for-rl --image midtrain-for-rl.sif \
+  --cli-dir CLI_DIR --judge-dir JUDGE_DIR --run-dir RUN_DIR --asset-root tasks/midtrain-for-rl \
+  --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR --scratch LOCAL_DISK_DIR
+```
+
+On Docker:
+
+```bash
+python3 -m breakwater run --backend docker --task tasks/midtrain-for-rl \
   --agent-image midtrain-for-rl-author:claude-code --verifier-image midtrain-for-rl-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
-  --run-dir RUN_DIR --asset-root tasks/midtrain-for-rl --bindings bindings.json \
+  --run-dir RUN_DIR --asset-root tasks/midtrain-for-rl \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR
 ```
 
-The task uses GPUs 0 to 3 by default (`--gpus device=0,1,2,3`). Reports land in `RUN_DIR/reports/`
+On Docker, the task uses GPUs 0 to 3 by default (`--gpus device=0,1,2,3`). Reports land in `RUN_DIR/reports/`
 (`mechanical-check.json`, `judge.json`, `reward.json`); the sealed evaluation outputs include the
 post-RL `summary.json` with each benchmark score. Generic options and the safeguards are described in
 [`breakwater/README.md`](../../breakwater/README.md).
@@ -230,7 +262,7 @@ post-RL `summary.json` with each benchmark score. Generic options and the safegu
 
 **Evaluation stage.** After the agent container has stopped and its workspace has been sealed,
 Breakwater starts a fresh container from the same image with the sealed workspace read-only at
-`/app`. The trusted coordinator (`breakwater/intermediate.py`, kind `midtrain`) checks that the
+`/app`. The task's trusted code (`evaluate` in `tests/breakwater_task.py`) checks that the
 private evaluation sets match `tests/rl_eval/eval_sources.json`, closes the network except for the
 sandbox's address and port (IPv6 to loopback only), and runs `tests/rl_eval/run.sh` on
 `/app/out/final_checkpoint` with fresh caches and the four GPUs: checkpoint validation, the RL
@@ -265,13 +297,11 @@ and vendor pins. `MIDTRAIN_RUN_DOCKER_TESTS=1` adds a check against the real san
 ```text
 tasks/midtrain-for-rl/
   instruction.md            the agent's instruction
-  task.toml                 Harbor task description (budgets, runtime image, resources)
-  breakwater.json           the Breakwater task contract
-  bindings.example.json     prepared inputs and the stages that see them
+  task.toml                 Harbor task description and the Breakwater contract (budgets, image, resources, inputs)
   prepare.sh                asset preparation and image builds
   prepare_data.py           pinned downloads and derivations for the corpora and development sets
   data_sources.json         pinned model, corpus and development-set revisions
-  environment/              task runtime image tag (Dockerfile) and the agent policy
+  environment/              task runtime image tag (Dockerfile; apptainer.def for Apptainer) and the agent policy
   evals/                    development evaluations and the submission check (agent-visible)
   tests/test.sh             Harbor verifier entry point; refuses to run outside Breakwater
   tests/grade.py            evaluation-stage helpers and the acceptance rule for the score

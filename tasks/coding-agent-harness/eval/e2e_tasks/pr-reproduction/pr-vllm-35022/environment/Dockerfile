@@ -7,15 +7,15 @@
 # This is a FULL-GENERATION task (it runs a real model end-to-end, not a synthetic kernel), so:
 #   * TinyLlama-1.1B-Chat is baked into the HF cache at build time (build has network; run time does not) and
 #     HF_HUB_OFFLINE is set afterwards, so the graded test — and the agent's own iteration — run fully offline.
-#   * VLLM_USE_FLASHINFER_SAMPLER=0: the slim runtime base has no nvcc, and vLLM's default flashinfer sampler
-#     JIT-compiles a .cu at the first token ("nvcc: not found"). Forcing the Triton sampler sidesteps it.
+#   * The CUDA compiler matching torch's CUDA is installed: vLLM's attention on Blackwell (FlashInfer) compiles its
+#     kernel launchers at first use. VLLM_USE_FLASHINFER_SAMPLER=0 keeps the Triton sampler.
 #
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────
 # BASE (torch-2.11). The image builds standalone; no pre-built local base image is required:
 #   docker build -t pr-vllm-35022:local tasks/coding-agent-harness/eval/e2e_tasks/pr-reproduction/pr-vllm-35022/environment
 #
-# Slim on purpose: the CUDA *runtime* image (not devel) — Triton bundles its own ptxas and torch ships
-# its own CUDA runtime libs, so the ~6.6 GB devel toolkit is dead weight for a no-CUDA-rebuild task.
+# The CUDA *runtime* image: torch ships its own CUDA runtime libs, and the compiler FlashInfer needs is installed
+# after torch, at torch's own CUDA version (a 12.8 devel base could not target the GB300's sm_103).
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -41,6 +41,18 @@ RUN cd /opt/vllm-ref && \
     uv pip install --python /opt/venv/bin/python pytest gguf && \
     /opt/venv/bin/python -c "import vllm; print('base vLLM', vllm.__version__)"
 
+# vLLM's attention on Blackwell (the sm_100 family, which includes the GB300's sm_103) is FlashInfer's, whose kernel
+# launchers compile with nvcc at first use; vLLM's own images ship the compiler for it. Install the CUDA toolkit
+# matching torch's CUDA (13.0 on GB300) and make it /usr/local/cuda. CUDA 12.8's compiler cannot target sm_103.
+RUN TORCH_CUDA=$(/opt/venv/bin/python -c "import torch; print(torch.version.cuda or '')") && \
+    if [ -n "${TORCH_CUDA}" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends "cuda-toolkit-$(echo "${TORCH_CUDA}" | tr . -)" && \
+        rm -rf /var/lib/apt/lists/* && \
+        ln -sfn "/usr/local/cuda-${TORCH_CUDA}" /usr/local/cuda && \
+        echo "torch CUDA ${TORCH_CUDA} -> $(/usr/local/cuda/bin/nvcc --version | tail -1)"; \
+    fi
+
 # ──────────────────────────────────── end base · task layer below ───────────────────────────────────
 ARG VLLM_COMMIT=fbc3a1907aeb6beff59461e535045f17ac14306e
 
@@ -65,10 +77,9 @@ RUN uv pip install --python /opt/venv/bin/python gguf && \
 
 # From here on the container is offline — resolve the baked model from cache, never the Hub.
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
-# This slim base is a CUDA *runtime* image (no nvcc). vLLM's default flashinfer sampler JIT-compiles a .cu at
-# first use, which needs nvcc and would fail here. Force the Triton/torch sampler (Triton bundles ptxas) so
-# end-to-end generation runs on this box. Orthogonal to the beam-search grammar feature — purely a sampler
-# backend choice — so it does not hint at the solution. Applies to both the agent's iteration and the grader.
+# vLLM's default flashinfer sampler would compile one more kernel at first use. Force the Triton/torch sampler
+# (Triton bundles ptxas). Orthogonal to the beam-search grammar feature — purely a sampler backend choice — so it
+# does not hint at the solution. Applies to both the agent's iteration and the grader.
 ENV VLLM_USE_FLASHINFER_SAMPLER=0
 
 # Drop .git so the agent cannot check out the fix commit or read history.

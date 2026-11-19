@@ -149,10 +149,14 @@ displays 0.460). In the Singularity Index this task contributes the agent's rewa
 
 ## Preparing assets
 
-Run from the repository root. The launch host needs Docker, Python 3.12 or newer, `git`, and a way to run
-commands on the GPU nodes (`ssh` by default; set `CLUSTER_REMOTE_LAUNCH`, for example
-`'srun --nodelist={node} --nodes=1 {cmd}'`). The repository, `tasks/cluster-serverless/runs/` and the weights
-must be visible at the same absolute paths on the launch host and on every node.
+Run from the repository root. Nothing here allocates GPU nodes: reserve four nodes of four GPUs however your site
+does (a Slurm job, a reservation, machines of your own) and pass their host names with `--nodes`. The launch host
+runs Breakwater and needs no GPU. It needs Python 3.12 or newer, `git`, Docker only for the Docker backend, a way to
+run commands on the nodes (`ssh` by default; set `CLUSTER_REMOTE_LAUNCH`, for example
+`'srun --nodelist={node} --nodes=1 {cmd}'`), and HTTP access to the fleet's ports on them. Each node runs its part
+of the fleet in Docker, or in Apptainer with `CLUSTER_FLEET_RUNTIME=apptainer`. The repository,
+`tasks/cluster-serverless/runs/` and the weights must be visible at the same absolute paths on the launch host and on
+every node.
 
 **1. The workload ships with the task.** The generated world -- catalogues, fleets, suite definitions and the
 six traces with their `.meta.json` files (`tests/trace-graded-load-*`, `environment/trace-public-load-*`, about
@@ -182,7 +186,8 @@ writes the verified copy there; without it, it republishes the (identical) files
 refreshes the kit copies (`_dev/sync_kit.sh`).
 
 **2. Stage the weights** (about 5.4 TiB over 28 checkpoints; some repositories are gated and need an accepted
-licence and `HF_TOKEN`; needs `huggingface_hub` on the launch host). This takes no GPU nodes, is resumable, and
+licence and `HF_TOKEN`; needs `huggingface_hub` and `numpy` in the launch host's Python, or in the one
+`CLUSTER_PYTHON` names). This takes no GPU nodes, is resumable, and
 verifies every file against `_kit/checkpoints.lock.json`:
 
 ```bash
@@ -223,33 +228,81 @@ Use `--build-arg AUTHOR_CLI=codex` (tag `cluster-serverless-author:codex`) for a
 
 ## Running under Breakwater
 
-Start a fleet first. `bin/cluster.sh up` and `breakwater/run.py` must share two secrets: the development
-receipt key (given to the agent) and the fleet's grader token (trusted code only).
+Start a fleet first. `bin/cluster.sh up` and the launcher must share two secrets: the development receipt key
+(given to the agent) and the fleet's grader token (trusted code only). The task's host hooks
+([`tests/breakwater_host.py`](tests/breakwater_host.py), declared in `task.toml`) check the fleet before the run, reset
+it, give each sandbox exactly its fleet endpoints, and collect this run's inference journals afterwards; the launcher
+takes the fleet's two manifests as operator inputs and holds the grader token.
+
+### On Apptainer
+
+Apptainer is the default backend. Build the fleet image once as a SIF on a shared path and start the fleet with the
+Apptainer runtime. The manifest then keeps node names, which Breakwater's sandboxes resolve to
+relays of exactly the controller and engine ports (the coordinator also reaches the node managers):
+
+```bash
+export CLUSTER_RECEIPT_KEY=$(openssl rand -hex 32) CLUSTER_GRADER_TOKEN=$(openssl rand -hex 24)
+export FIREWORKS_API_KEY=...            # the integrity judge
+TASK_SIF=cluster-serverless.sif bash tasks/cluster-serverless/environment/build-apptainer.sh   # the task runtime
+(cd tasks/cluster-serverless/environment/fleetsvc && apptainer build --fakeroot /shared/cluster-fleet.sif apptainer.def)
+export CLUSTER_FLEET_RUNTIME=apptainer CLUSTER_FLEET_IMAGE=/shared/cluster-fleet.sif
+export CLUSTER_REMOTE_LAUNCH='srun --overlap --nodelist={node} -N1 -n1 --mem=0 --cpu-bind=none --oom-kill-step=0 bash -c {cmd}' \
+  CLUSTER_REMOTE_FOREGROUND=1   # --mem=0: the whole node; set CLUSTER_BASE_PORT if a site service holds 9100
+# --oom-kill-step=0 (where srun has it): a process that runs the node out of memory dies alone, rather than taking
+# the node's whole fleet (its manager and every engine) with it on sites whose Slurm sets OOMKillStep.
+# Optional: CLUSTER_FLEET_HOME, a node-local directory for the fleet's per-run home (vLLM and Triton caches; default
+# /tmp), removed by `down`.
+tasks/cluster-serverless/bin/cluster.sh stage --nodes "$NODES"    # checks every node reads the SIF and the weights
+tasks/cluster-serverless/bin/cluster.sh up --nodes "$NODES"
+python3 -m breakwater run --task tasks/cluster-serverless --image cluster-serverless.sif ... \
+  --input fleet=RUN/fleet.json --input public-fleet=RUN/fleet.public.json
+```
+
+### On Docker
 
 ```bash
 export CLUSTER_RECEIPT_KEY=$(openssl rand -hex 32)
 export CLUSTER_GRADER_TOKEN=$(openssl rand -hex 24)
 export FIREWORKS_API_KEY=...            # the integrity judge
 tasks/cluster-serverless/bin/cluster.sh up --nodes "$NODES"
-# prints: fleet up: --fleet RUN/fleet.json --public-fleet RUN/fleet.public.json
+# prints: fleet up: --input fleet=RUN/fleet.json --input public-fleet=RUN/fleet.public.json
 
-cp tasks/cluster-serverless/bindings.example.json bindings.json     # an empty list: no asset bindings
-python3 breakwater/run.py --task tasks/cluster-serverless \
+python3 -m breakwater run --backend docker --task tasks/cluster-serverless \
   --agent-image cluster-serverless-author:claude-code --verifier-image cluster-serverless-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
-  --run-dir RUN_DIR --asset-root ASSET_ROOT --bindings bindings.json \
+  --run-dir RUN_DIR --asset-root ASSET_ROOT \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR \
-  --fleet RUN/fleet.json --public-fleet RUN/fleet.public.json
+  --input fleet=RUN/fleet.json --input public-fleet=RUN/fleet.public.json
 
 tasks/cluster-serverless/bin/cluster.sh down --fleet RUN/fleet.json
 ```
 
+
+`--smoke` grades one cell (`load-1.0`) instead of three; its reward is not a benchmark score.
+
+Where node-local disk is faster than the shared copy but is wiped when a job ends, seed it at the start of each job:
+`rsync -a /shared/hf-weights/ /local/hf-weights/` on every node (it keeps the modification times that the staging
+receipts record), then point `CLUSTER_WEIGHTS_DIR` at `/local/hf-weights`; `stage` confirms every node sees all the
+weights. A copy without those times (a plain `cp`) fails the fleet's launch check, which compares sizes and times
+with the receipts.
+
+The fleet's nodes need not share one job. Where a site cancels large jobs whose GPUs sit idle (as the fleet's do
+while the agent writes code), hold each node in its own single-node job. `CLUSTER_REMOTE_LAUNCH` runs in a shell, so
+it can look up each node's job:
+
+```bash
+export CLUSTER_REMOTE_FOREGROUND=1
+export CLUSTER_REMOTE_LAUNCH='srun --jobid=$(squeue -h -u "$USER" -t R -w {node} -o %A | head -n1) --overlap --nodelist={node} -N1 -n1 --mem=0 --cpu-bind=none --oom-kill-step=0 bash -c {cmd}'
+```
+
+Start the Breakwater launcher inside one of those jobs, so its sandboxes' Slurm steps stay on that job's node.
+
 - The task binds no host assets and uses no local GPU devices; any dedicated empty directory serves as
   `--asset-root`, and `--gpus` is not needed. `RUN_DIR` must be new and outside the task tree.
-- `run.py` checks before authoring that the fleet has four nodes of four GPUs matching the catalogue and that
+- The host hooks check before authoring that the fleet has four nodes of four GPUs matching the catalogue and that
   the public manifest names the same nodes without secrets. The graded suite is development-provisional, which
-  `breakwater.json` permits with `cluster.allow_unqualified`; measurements are marked `development_only`.
-- Fleet hosts are written as IPv4 addresses so the agent's container can reach them. The fleet run
+  `task.toml` permits with `allow_unqualified` in `[breakwater.options]`; measurements are marked `development_only`.
+- On Docker, fleet hosts are written as IPv4 addresses so the agent's container can reach them. The fleet run
   directory's `inference-audit/` (recorded in the private manifest) must be readable on the launch host.
 - Budgets: up to 4 hours of authoring, up to 6 hours for the three graded cells (`evaluation_timeout_sec`) and
   up to 3 hours for the integrity review (`judge_timeout_sec`), plus startup and cleanup. At the authoring
@@ -259,7 +312,7 @@ tasks/cluster-serverless/bin/cluster.sh down --fleet RUN/fleet.json
 
 ### What the intermediate stage and the verifier do
 
-The intermediate stage (`breakwater/cluster_cells.py`, a fresh container) grades the sealed submission.
+The intermediate stage (`tests/cluster_cells.py`, a fresh container) grades the sealed submission.
 Root keeps the private traces (the task's `tests/`), the private fleet manifest, the grader token and every
 per-cell receipt key in directories the worker cannot read. Before the cells it checks the fleet's shape and
 hardware identity through the controller (four trays of four B300-named GPUs, 16 distinct UUIDs), the trace,
@@ -302,13 +355,23 @@ no GPUs, timings from a cost model rather than GB300 hardware, and a memory mode
 the real fleet would crash. It is a development utility for exercising a control plane locally; it produces no
 comparable scores and cannot be used for graded runs.
 
+### Known limits
+
+- Prompts are token IDs and the verifier has no tokenizer, so the judge reads response text and the author
+  transcript.
+- Fleet-journal phase windows use host wall clocks.
+- The graded cells share one evaluation container. Worker files are removed between cells, but SysV IPC objects,
+  `/proc` and `/sys` are not isolated per cell, and `RLIMIT_NPROC` counts every UID-1101 process on the host. The
+  `cpuset` in `[breakwater.resources]` must name CPUs the fleet does not use.
+
 ## Files
 
 | Path | Contents |
 | --- | --- |
 | `instruction.md` | The statement the agent receives |
-| `task.toml`, `breakwater.json`, `bindings.example.json` | Harbor task declaration, Breakwater task contract and (empty) asset bindings |
-| `environment/` | Task image: `Dockerfile`, starter plane, helpers, public catalogue, fleet view, suite and traces, agent policy; `_kitcopy/` holds the kit modules the image copies; `fleetsvc/` is the fleet image |
+| `task.toml` | Harbor task declaration and the Breakwater task contract (no assets) |
+| `tests/breakwater_task.py` | The task's trusted code: the graded cells, the recomputed utility and the fleet-journal check |
+| `environment/` | Task image: `Dockerfile` (`apptainer.def`, `build-apptainer.sh` for Apptainer), starter plane, helpers, public catalogue, fleet view, suite and traces, agent policy; `_kitcopy/` holds the kit modules the image copies; `fleetsvc/` is the fleet image (`Dockerfile`, `apptainer.def`) |
 | `tests/` | Grading inputs: driver and scorer (`kit/`), graded and public catalogues, graded fleet manifests, graded suite, private traces, build fingerprint, judge rubric, `test.sh` |
 | `_kit/` | Source of truth for the fleet (controller, managers, workers, inference journals, telemetry, emulator), the driver, the scorer, the catalogue and workload generators and their frozen inputs |
 | `bin/` | `cluster.sh` (weights, node checks, fleet up/down), `check_gpu_memory.py`, `check_cluster.py` |

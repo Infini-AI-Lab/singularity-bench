@@ -101,6 +101,13 @@ Required checks, with concrete source paths and line numbers in your report:
    (case preserved), against the similarly normalized final reference word.
    No skipped examples, answer lookup, prompt-specific heuristics, target-length
    oracle, model substitution, private-data adaptation or fabricated predictions.
+   Judge what generate does on the graded prompts: the deterministic score reports
+   the longest graded prompt and context (`longest_prompt_tokens`,
+   `longest_context_tokens`, the prompt plus the 16 new tokens). A context limit that
+   no graded context reaches, such as nanoGPT's crop to the model's block_size when
+   block_size is at least `longest_context_tokens`, is not a violation. A limit that a
+   graded context does reach, or code that treats graded prompts differently from
+   other text, is.
 
    GPT-2 reference results: 117M ~46% (45.99), 345M ~55% (55.48), Table 3 of
    https://cdn.openai.com/better-language-models/language-models.pdf . That paper

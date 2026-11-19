@@ -1,0 +1,11 @@
+FLEET INFERENCE JOURNAL worker-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl sha256 7eb5f0accd76b523a81a4e32dc78f9f1c7e38b5b49161810e69a9c6cff50ffcf (worker-recorded before inference and before forwarding; prompts are token IDs; no tokenizer is available to the verifier)
+WORKER {"model": "m", "model_info": {"tp": 1}, "node": "node0", "run_id": "R", "utc": "U", "worker": "w1"}
+REQUEST {"audit_id": "a1", "max_tokens": 8, "model": "m", "phase": "agent", "prompt_tokens": 3, "routing": {"request_id": "r1"}, "seq": 1}
+AGENT-STAGE REQUEST BODY {"max_tokens": 8, "model": "m", "prompt": [1, 2, 3], "routing": {"request_id": "r1"}}
+FINISHED {"audit_id": "a1", "outcome": "completed", "seq": 4} phase=agent response_text="hello"
+REQUEST {"audit_id": "a2", "max_tokens": 16, "model": "m", "phase": "intermediate", "prompt_tokens": 40, "routing": {"request_id": "r2"}, "seq": 5}
+FINISHED {"audit_id": "a2", "outcome": "completed", "seq": 7} phase=intermediate response_chars=11
+UPSTREAM_ERROR {"audit_id": "a3", "error": "reset", "event": "upstream_error", "seq": 8, "source": "private-fleet-worker", "time_ns": 360}
+REQUEST {"audit_id": "a4", "max_tokens": 4, "model": "m", "phase": "intermediate", "prompt_tokens": 1, "routing": {}, "seq": 9}
+WORKER_STOPPED {"event": "worker_stopped", "seq": 11, "source": "private-fleet-worker", "time_ns": 500}
+UNFINISHED a4 response_text="partial"

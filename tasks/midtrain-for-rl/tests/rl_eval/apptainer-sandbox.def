@@ -1,0 +1,14 @@
+# The CPU image in which the code sandbox runs generated code (Dockerfile.sandbox), as a SIF for hosts without
+# Docker: apptainer build --fakeroot midtrain-code-sandbox.sif apptainer-sandbox.def, then
+# sandbox.py --apptainer midtrain-code-sandbox.sif. Tests run as the invoking user, with no network.
+Bootstrap: docker
+From: python:3.12.11-slim-bookworm
+
+%post
+    # %post's /tmp is the build host's, often small: temporary files (pip's downloads and builds) go to a directory
+    # in the image tree instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    # Expanded functional tests depend on NumPy. Keep it inside the CPU sandbox.
+    python3 -m pip install --no-cache-dir numpy==1.26.4
+    rm -rf /opt/build-tmp

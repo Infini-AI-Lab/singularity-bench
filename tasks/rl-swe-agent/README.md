@@ -30,8 +30,8 @@ integrity rubric.
 
 ## What the agent receives
 
-The workspace `/app` is this task directory without `README.md`, `evaluation/`, `tests/`, `breakwater.json`,
-`bindings.example.json` and the local `data/`, `artifacts/`, `out/` and `.deps/` directories, plus read-only
+The workspace `/app` is this task directory without `README.md`, `evaluation/`, `tests/`, `task.toml` and the local
+`data/`, `artifacts/`, `out/` and `.deps/` directories, plus read-only
 bindings of the prepared inputs:
 
 - `mini_slime/`, the starting implementation: rollout collection through the worker and a Miles session server
@@ -132,7 +132,58 @@ docker build -t rl-swe-agent-eval:local tasks/rl-swe-agent/evaluation   # host e
 
 For Codex, build the author image with `--build-arg AUTHOR_CLI=codex -t rl-swe-agent-author:codex`.
 
-## Running
+## Running on Apptainer
+
+Apptainer is the default backend, for GB300 clusters without Docker. The Breakwater run uses it
+([breakwater/apptainer/README.md](../../breakwater/apptainer/README.md)), and the sandbox worker and the evaluator run
+their task sandboxes in rootless podman (`worker/podman/`): Harbor's Docker environment with podman underneath,
+container root mapped to the calling user, slirp4netns networking in which a sandbox reaches the host's loopback as
+`host.docker.internal`. Everything runs on the node of the Breakwater run.
+
+**Images.** Build the task runtime and the evaluation runtime as SIFs, and bring the native task images into a private
+podman store on node-local disk. Rootless podman builds task images (`arm64_tasks.py build --engine podman`) only on
+hosts with subordinate UID ranges, since some task images install packages whose files belong to other users; elsewhere,
+build them on an arm64 host with Docker and move them with `docker save` and `podman load`.
+
+```bash
+TASK_SIF=$WORK/rl-swe-agent.sif bash $T/environment/build-apptainer.sh
+EVAL_SIF=$WORK/rl-swe-agent-eval.sif bash $T/evaluation/build-apptainer.sh
+PODMAN_STORE=/local/disk/podman-store source $T/worker/podman/podman-store.sh   # a new directory; see the script
+podman load -i TRAINING_IMAGES.tar                                              # the 655 training tasks' images
+```
+
+**1. Sandbox worker**, in that shell, before the run and for the whole authoring stage. With `--engine podman` it
+checks the images through podman, runs every trial in a rootless podman sandbox and listens on the host's loopback:
+
+```bash
+uv run --directory $T/.deps/harbor --frozen --python 3.12 python $T/worker/start.py --engine podman \
+  --harbor $T/.deps/harbor --tasks $WORK/native/tasks/rl-swe-agent-train --trials $WORK/worker-trials
+```
+
+**2. Breakwater run.** The launcher checks the worker's health, gives the agent's commands `sandbox-worker:11000`
+through a relay to it (`--endpoint sandbox-worker=HOST:PORT` if it listens elsewhere than `127.0.0.1:11000`), and relays the
+session ports 30000-30015 from the host's loopback into the command sandbox, where the session servers listen; the
+episode sandboxes reach them as `host.docker.internal:PORT`. The ports must be free on the node.
+
+```bash
+python3 -m breakwater run --task tasks/rl-swe-agent --image $WORK/rl-swe-agent.sif \
+  --cli-dir CLI_DIR --judge-dir JUDGE_DIR --run-dir RUN_DIR --asset-root tasks/rl-swe-agent \
+  --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR --scratch LOCAL_DISK_DIR
+```
+
+**3. Host evaluation**, with the GPUs free, in a shell with the podman store and the development and SWE-bench images
+loaded. The audit and the policy server run from the evaluation SIF, the policy server listens on the host's loopback,
+and the task sandboxes reach it as `host.docker.internal`:
+
+```bash
+python3 $T/evaluation/evaluate_checkpoint.py --runtime apptainer --eval-sif $WORK/rl-swe-agent-eval.sif \
+  --sandboxes podman --checkpoint RUN_DIR/submission/out/final_checkpoint \
+  --image-manifest $WORK/plan/image-cache.json --output EVAL_OUT
+python3 $T/evaluation/score.py TRIAL_DIR EVAL_OUT --integrity RUN_DIR/reports/judge.json
+podman_store_remove   # afterwards: stop every sandbox and delete the store
+```
+
+## Running on Docker
 
 **1. Sandbox worker.** Start it on the host before the run and keep it running for the whole authoring stage:
 
@@ -145,23 +196,23 @@ It refuses a Harbor checkout at another commit or without both patches, an x86 D
 not native arm64. It listens on port 11000 and records its configuration (`worker-provenance.json`) and every request
 in the new `--trials` directory. The agent's rollout code calls the worker over HTTP, and the task sandboxes the
 worker starts call back to the session servers in the agent container, which register as `host.docker.internal:PORT`.
-Breakwater wires this up from `sandbox_worker` in [breakwater.json](breakwater.json): the authoring container joins a
-dedicated bridge network on which `sandbox-worker` and `host.docker.internal` name the host, its session ports
-30000-30015 are published on the host's loopback (the worker's health checks) and on the default-bridge gateway (what
-`host.docker.internal` resolves to in the sandboxes), and its firewall admits only `sandbox-worker:11000` plus replies
-on those ports. The host must let that network reach port 11000 and forward sandbox traffic to the published ports.
-This path is a draft that has not yet been validated on GB300 hosts; check it before a full run.
+Breakwater wires this up from [task.toml](task.toml): the worker is the task's `sandbox-worker` endpoint
+(`[[breakwater.endpoints]]`) and the session ports are its inbound ports (`[breakwater.authoring] inbound_ports`). The
+authoring container joins a dedicated bridge network on which `sandbox-worker` and `host.docker.internal` name the host,
+its session ports 30000-30015 are published on the host's loopback (the worker's health checks) and on the
+default-bridge gateway (what `host.docker.internal` resolves to in the sandboxes), and its firewall admits only
+`sandbox-worker:11000` plus replies on those ports. The host must let that network reach port 11000 and forward sandbox traffic to the published ports;
+check this path on your hosts with a short run before a full one.
 
-**2. Breakwater run.** Copy `tasks/rl-swe-agent/bindings.example.json` to `bindings.json`. Its sources are relative to
-`--asset-root`, which with the layout above is the task directory (`artifacts/GLM-4.7-Flash`, `data/train.jsonl`,
-`data/dev.jsonl`, `data/manifest.json`); if an input is a symlink to another disk, use an asset root that contains the
-resolved inputs. With `FIREWORKS_API_KEY` set for the integrity judge:
+**2. Breakwater run.** The task's assets (`[[breakwater.assets]]` in `task.toml`) are relative to `--asset-root`,
+which with the layout above is the task directory (`artifacts/GLM-4.7-Flash`, `data/train.jsonl`, `data/dev.jsonl`,
+`data/manifest.json`); if an input is a symlink to another disk, use an asset root that contains the resolved inputs. With `FIREWORKS_API_KEY` set for the integrity judge:
 
 ```bash
-python3 breakwater/run.py --task tasks/rl-swe-agent \
+python3 -m breakwater run --backend docker --task tasks/rl-swe-agent \
   --agent-image rl-swe-agent-author:claude-code --verifier-image rl-swe-agent-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
-  --run-dir RUN_DIR --asset-root tasks/rl-swe-agent --bindings bindings.json \
+  --run-dir RUN_DIR --asset-root tasks/rl-swe-agent \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER --author-key-env KEY_VAR
 ```
 
@@ -191,17 +242,17 @@ The final reward is written to `TRIAL_DIR/verifier/reward.json`; it is 0 unless 
 
 | Path | Contents |
 |---|---|
-| `instruction.md`, `task.toml` | the task prompt and the Harbor task definition |
-| `breakwater.json`, `bindings.example.json` | the Breakwater task contract and the prepared inputs each stage sees |
-| `environment/` | the task runtime image (`Dockerfile`, `build.sh`) and the agent policy |
+| `instruction.md`, `task.toml` | the task prompt and the Harbor task definition with the Breakwater contract and the prepared inputs each stage sees |
+| `tests/breakwater_task.py` | the task's trusted code: it records the host evaluation and defers the score to it |
+| `environment/` | the task runtime image (`Dockerfile`, `build.sh`; `apptainer.def`, `build-apptainer.sh`) and the agent policy |
 | `mini_slime/` | the starting implementation |
-| `worker/` | the sandbox worker launcher and its two Harbor patches |
+| `worker/` | the sandbox worker launcher, its two Harbor patches and the rootless-podman environment (`worker/podman/`) |
 | `download_artifacts.py`, `prepare_inputs.py`, `prepare_data.py`, `dataset_contract.py`, `data_manifest.json`, `sources.lock.json` | pinned downloads and the fixed 655/73 split |
 | `arm64_tasks.py`, `arm64/` | native ARM64 task images |
-| `evaluation/` | the trusted host evaluator and the scorer (not in the agent's workspace) |
+| `evaluation/` | the trusted host evaluator, its runtime (`Dockerfile`, `apptainer.def`) and the scorer (not in the agent's workspace) |
 | `tests/` | the verifier entry point, the integrity rubric and CPU unit tests |
 | `pyproject.toml` | the `mini_slime` package and its test settings |
 
 The CPU unit tests run without GPUs or Docker: `python3 -m pytest tasks/rl-swe-agent/tests/unit` (the training
-and checkpoint tests need `torch`, `safetensors` and `httpx`). `test_arm64_tasks.py` and `test_evaluation.py` need only
+and checkpoint tests need `torch` and `safetensors`, and the Harbor client tests `httpx`). `test_arm64_tasks.py` and `test_evaluation.py` need only
 the standard library: `python3 -m unittest discover -s tasks/rl-swe-agent/tests/unit -p test_evaluation.py`.

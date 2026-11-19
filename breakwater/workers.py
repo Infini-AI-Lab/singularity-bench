@@ -1,8 +1,8 @@
 """Root-side worker process and file control inside an intermediate container (needs CAP_KILL).
 
 Only submitted code runs as UID 1101 in an intermediate container, so "every process
-with UID 1101" is exactly the set a trusted coordinator must stop between scenarios,
-cells and before it finishes. Signalling by UID also reaches detached grandchildren
+with UID 1101" is exactly the set a trusted coordinator must stop between scenarios
+and before it finishes. Signalling by UID also reaches detached grandchildren
 that left the original process group or session.
 
 The file helpers run only while no worker process exists: they install fresh
@@ -19,6 +19,18 @@ import time
 WORKER_UID = 1101
 SHARED_GID = 1200
 SEAL_MANIFEST = 'manifest.json'
+
+
+def apptainer():
+    return os.environ.get('BREAKWATER_BACKEND') == 'apptainer'
+
+
+def worker_prefix():
+    """How the evaluation coordinator starts submitted code: as the worker UID (Docker backend), or in the
+    separate submission sandbox through the worker broker (Apptainer backend)."""
+    if apptainer():
+        return ['python3', '-I', '/opt/breakwater-runtime/worker-exec']
+    return ['python3', '-I', '-B', '/opt/breakwater-runtime/run_worker.py']
 
 
 class InvalidSubmission(ValueError):
@@ -40,7 +52,15 @@ def worker_pids(uid=WORKER_UID):
 
 
 def kill_workers(grace=0.0, timeout=60.0, uid=WORKER_UID):
-    """Optionally SIGTERM and wait ``grace`` seconds, then SIGKILL until none remain."""
+    """Optionally SIGTERM and wait ``grace`` seconds, then SIGKILL until none remain: every process of the worker UID
+    (Docker), or every process in the submission sandbox, through the worker broker (Apptainer)."""
+    if apptainer():
+        import subprocess
+        result = subprocess.run([*worker_prefix(), '--kill-all', str(float(grace))], stdin=subprocess.DEVNULL,
+                                timeout=grace + timeout + 60)
+        if result.returncode != 0:
+            raise RuntimeError('Submitted worker processes survived teardown')
+        return
     stages = ([(signal.SIGTERM, grace)] if grace > 0 else []) + [(signal.SIGKILL, timeout)]
     for sig, wait in stages:
         deadline = time.monotonic() + wait
@@ -129,16 +149,18 @@ def install_tree(pairs, allowed=(), uid=WORKER_UID, gid=SHARED_GID):
         resolved = Path(os.path.realpath(link))
         if not any(resolved == root or resolved.is_relative_to(root) for root in roots):
             raise InvalidSubmission(f'Symbolic link {link} resolves outside the submission: {os.readlink(link)}')
+    # On Apptainer the coordinator and the submitted code run as the same user, who owns the copy already.
+    owner = (lambda path: None) if apptainer() else (lambda path: os.chown(path, uid, gid, follow_symlinks=False))
     for _, target in pairs:
         target = Path(target)
-        os.chown(target, uid, gid, follow_symlinks=False)
+        owner(target)
         target.chmod(0o2775)
     for path in created:
-        os.chown(path, uid, gid, follow_symlinks=False)
+        owner(path)
         if path.is_dir():
             path.chmod(0o2775)
     for link in links:
-        os.chown(link, uid, gid, follow_symlinks=False)
+        owner(link)
     return {'files': sum(1 for path in created if not path.is_dir()), 'symlinks': len(links)}
 
 

@@ -8,8 +8,8 @@ invalid measurements. The agent's prompt is [`instruction.md`](instruction.md).
 
 ## What the agent receives
 
-The agent works in `/app`, a copy of this directory without `README.md`, `tests/`,
-`breakwater.json` and `bindings.example.json`.
+The agent works in `/app`, a copy of this directory without `README.md`, `tests/`, `runners/` and
+`task.toml`.
 
 | Input | Location in the agent container |
 | --- | --- |
@@ -17,7 +17,7 @@ The agent works in `/app`, a copy of this directory without `README.md`, `tests/
 | OpenWebText training split: 8,009,762 documents tokenized with the Qwen3 tokenizer, stored as flat little-endian `uint32` token IDs with documents separated by `<\|endoftext\|>` (ID 151643) | `/app/nanoGPT/data/openwebtext_qwen3_full/{train.bin,meta.json}`, read-only |
 | Qwen3 tokenizer (151,669 defined token IDs), two example Qwen3 architecture configs (Qwen3-0.6B dense, Qwen3-30B-A3B mixture of experts), `manifest.json` with their sources and hashes, `LICENSE-QWEN` | `/app/models` |
 | Evaluation contract: the adapter stubs [`generation_model.py`](generation_model.py) (`load_model`, `generate`, `ppl_logits`), the fixed LAMBADA runner [`run_generation.sh`](run_generation.sh) with its protocol [`generation_eval.py`](generation_eval.py), and [`best_checkpoint.schema.json`](best_checkpoint.schema.json) | `/app` |
-| PyTorch 2.7.1 (CUDA 12.8), Transformers, Tokenizers, Datasets and the other packages in [`environment/requirements.txt`](environment/requirements.txt); Megatron-LM at a pinned commit on `PYTHONPATH`, optional to use | the task runtime image |
+| PyTorch 2.9.1 (CUDA 12.9) with Triton set up for GB300, Transformers, Tokenizers, Datasets and the other packages in [`environment/requirements.txt`](environment/requirements.txt); Megatron-LM at a pinned commit on `PYTHONPATH`, optional to use | the task runtime image |
 
 There are no pretrained weights. The agent's commands run as an unprivileged worker without
 internet access; the coding agent (Claude Code or Codex) reaches its own model only through
@@ -79,7 +79,9 @@ failed or rejected run counts as 0.
 ## Building the task runtime image
 
 `open-ended-nano-gpt:local` is built from [`environment/Dockerfile`](environment/Dockerfile):
-CUDA 12.8 on Ubuntu 24.04 (arm64), PyTorch 2.7.1 and the packages in `requirements.txt`, plus
+CUDA 12.9 on Ubuntu 24.04 (arm64), PyTorch 2.9.1 and the packages in `requirements.txt`, with Triton's bundled
+CUDA 12.8 ptxas linked to the image's CUDA 12.9 one and checked by compiling for GB300
+([`environment/triton_ptxas.py`](environment/triton_ptxas.py): GB300 is sm_103, which CUDA 12.8 cannot target), plus
 Megatron-LM at commit `64d156734918e73238de5cad6d97dcfaa6ec1005`, supplied as the `megatron`
 build context, with two import-compatibility fixes from
 [`environment/patch_megatron.py`](environment/patch_megatron.py) (a `typing.override` fallback and
@@ -142,7 +144,26 @@ tens of gigabytes. Reserve about 100 GB of disk for the snapshot and the outputs
 
 ## Running under Breakwater
 
-Build the protected author image, the verifier image and the shared observer and gateway
+### On Apptainer
+
+Apptainer is the default backend ([breakwater/apptainer/README.md](../../breakwater/apptainer/README.md)). Build the
+runtime as a SIF (from the same Megatron-LM source), prepare the assets with it, and run; the stages, inputs and
+reports are the same as on Docker (below).
+
+```bash
+MEGATRON_SOURCE=/tmp/megatron-lm TASK_SIF=open-ended-nano-gpt.sif \
+  bash tasks/open-ended-nano-gpt/environment/build-apptainer.sh
+PREPARE_RUNTIME=apptainer TASK_SIF=open-ended-nano-gpt.sif bash tasks/open-ended-nano-gpt/prepare.sh ASSET_ROOT
+python3 -m breakwater install-cli --dest CLI_DIR        # once: the pinned agent CLI (--agent codex for Codex)
+python3 -m breakwater install-judge --dest JUDGE_DIR    # once: the pinned judge runner
+python3 -m breakwater run --task tasks/open-ended-nano-gpt --image open-ended-nano-gpt.sif \
+  --cli-dir CLI_DIR --judge-dir JUDGE_DIR --run-dir RUN_DIR --asset-root ASSET_ROOT \
+  --author-model MODEL --author-upstream https://PROVIDER --author-key-env AUTHOR_API_KEY --scratch LOCAL_DISK_DIR
+```
+
+### On Docker
+
+On a host with Docker, build the protected author image, the verifier image and the shared observer and gateway
 images ([`breakwater/README.md`](../../breakwater/README.md) describes them). For Codex, use
 `AUTHOR_CLI=codex` and the tag `open-ended-nano-gpt-author:codex`.
 
@@ -157,19 +178,18 @@ docker build -t breakwater-observer:local breakwater/collector
 docker build -f breakwater/Dockerfile.gateway -t breakwater-author-gateway:local breakwater
 ```
 
-The sources in [`bindings.example.json`](bindings.example.json) are relative to `ASSET_ROOT` and
-already match the layout that `prepare.sh` writes; targets and stages are fixed by the task
+The task's assets (`[[breakwater.assets]]` in [`task.toml`](task.toml)) are relative to `ASSET_ROOT`
+and already match the layout that `prepare.sh` writes; targets and stages are fixed by the task
 contract. Then launch:
 
 ```bash
-cp tasks/open-ended-nano-gpt/bindings.example.json bindings.json
 export FIREWORKS_API_KEY=...   # integrity judge; only the verifier container receives it
 export AUTHOR_API_KEY=...      # the agent's model provider; only the author gateway receives it
-python3 breakwater/run.py --task tasks/open-ended-nano-gpt \
+python3 -m breakwater run --backend docker --task tasks/open-ended-nano-gpt \
   --agent-image open-ended-nano-gpt-author:claude-code \
   --verifier-image open-ended-nano-gpt-verifier:local \
   --observer-image breakwater-observer:local --gateway-image breakwater-author-gateway:local \
-  --run-dir RUN_DIR --asset-root ASSET_ROOT --bindings bindings.json \
+  --run-dir RUN_DIR --asset-root ASSET_ROOT \
   --author-cli claude-code --author-model MODEL --author-upstream https://PROVIDER \
   --author-key-env AUTHOR_API_KEY --gpus device=0,1,2,3
 ```
@@ -179,19 +199,20 @@ the four GB300 CDI devices. Reports land in `RUN_DIR/reports/`: `reward.json` (t
 `mechanical-check.json`, `judge.json`, `llmjudgecomments.md` and `deterministic/diagnostics.json`
 (perplexity, scored-token count, LAMBADA accuracy and gate).
 
+
 ### What each stage does for this task
 
 **Agent stage.** The agent runs in the author image with the four GPUs, the seeded `/app` and the
-read-only training split. Its contract is in [`breakwater.json`](breakwater.json): kind `nano`,
+read-only training split. Its contract is in the `[breakwater]` tables of [`task.toml`](task.toml):
 deadline policy `evaluate`, failure and rule-violation reward -1, indexed review.
 
 **Evaluation stage.** A fresh container from the same author image mounts the sealed workspace read-only
 at `/app`, the validation split and LAMBADA under `/private`, and `tests/` at `/private/tests`;
-only the root coordinator can read `/private`. The coordinator (`breakwater/intermediate.py` with
-`breakwater/nano_stages.py`) checks `out/best_checkpoint.json`, the hash-checked generation files
+only the root coordinator can read `/private`. The coordinator (the task's `evaluate` in
+`tests/breakwater_task.py`, with `tests/nano_stages.py`) checks `out/best_checkpoint.json`, the hash-checked generation files
 and the LAMBADA checksum, draws the 500-example sample and writes answer-free inputs: example IDs
 with prompt token IDs. Submitted code then runs only as the worker (UID 1101), through
-Breakwater's fixed drivers (`breakwater/drivers/`), each of which calls `load_model` once:
+the task's fixed runners (`runners/`), each of which calls `load_model` once:
 
 - `ppl_logits` receives the validation stream block by block over a socket and returns sealed
   float32 logits. The root supervisor computes each target's log probability and writes
@@ -220,10 +241,10 @@ verdict is PASS and -1 otherwise.
 | Path | Purpose |
 | --- | --- |
 | `instruction.md` | Agent prompt |
-| `task.toml` | Harbor task metadata, timeouts, runtime image and resources |
-| `breakwater.json` | Breakwater task contract |
-| `bindings.example.json` | Asset bindings: training split for the agent; validation split and LAMBADA for the evaluation and verifier stages |
-| `environment/` | Task runtime image (`Dockerfile`, `build.sh`, `requirements.txt`, `patch_megatron.py`) and `agent-policy.json` for the author image |
+| `task.toml` | Harbor task metadata and the Breakwater contract: budgets, runtime image, resources, and the assets (training split for the agent; validation split and LAMBADA for the evaluation and verifier stages) |
+| `tests/breakwater_task.py`, `tests/nano_stages.py` | The task's trusted code: evaluation and the recomputed score |
+| `runners/` | Trusted runners that execute the submitted adapter during evaluation |
+| `environment/` | Task runtime image (`Dockerfile`, `build.sh`; `apptainer.def`, `build-apptainer.sh`; `requirements.txt`, `patch_megatron.py`, `triton_ptxas.py`) and `agent-policy.json` for the author image |
 | `nanoGPT/` | Starting code (upstream nanoGPT, MIT license) |
 | `models/` | Qwen3 tokenizer files, two example configs, `manifest.json` with sources and hashes, `LICENSE-QWEN` |
 | `generation_model.py` | Adapter stubs the agent implements |

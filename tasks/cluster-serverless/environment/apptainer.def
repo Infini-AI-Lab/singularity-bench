@@ -1,0 +1,72 @@
+# The cluster-serverless task runtime as an Apptainer image: a step-for-step translation of
+# environment/Dockerfile (same base image, pins and steps) for hosts without Docker. Build it with
+# environment/build-apptainer.sh, which stages the files the Docker build takes from its context (environment/).
+# CPU-only on purpose: the GPUs live in the remote fleet (environment/fleetsvc, a separate image). Apptainer pulls the
+# base image for the build host's architecture.
+Bootstrap: docker
+From: python:3.12-slim
+
+# %files: the agent's starting /app. Public cases use source partitions and seeds disjoint from the graded ones.
+# controller.py ships as the reference for the surface the plane drives; there is no simulator, physics.py or
+# score.py. traceunits ships because loadgen needs it to drive a trace at all.
+%files
+    reference_cp.py /app/reference_cp.py
+    run.sh /app/run.sh
+    selfcheck.py /app/selfcheck.py
+    control_plane_process.py /app/control_plane_process.py
+    start_control_plane.sh /app/start_control_plane.sh
+    stop_control_plane.sh /app/stop_control_plane.sh
+    process_safety.md /app/process_safety.md
+    AGENTS.md /app/AGENTS.md
+    CLAUDE.md /app/CLAUDE.md
+    catalogue-dev.json /app/catalogue.json
+    fleet-dev.public.json /app/fleet.json
+    trace-public-*.jsonl /app/
+    suite-public.json /app/suite-public.json
+    _kitcopy/controller.py /app/controller.py
+    _kitcopy/receipts.py /app/receipts.py
+    _kitcopy/fleetaddr.py /app/fleetaddr.py
+    _kitcopy/engine_args.py /app/engine_args.py
+    _kitcopy/prompts.py /app/prompts.py
+    _kitcopy/service_contract.py /app/service_contract.py
+    _kitcopy/loadgen.py /app/kit/loadgen.py
+    _kitcopy/response_io.py /app/kit/response_io.py
+    _kitcopy/traceunits.py /app/kit/traceunits.py
+    _kitcopy/receipts.py /app/kit/receipts.py
+    _kitcopy/looplag.py /app/kit/looplag.py
+    _kitcopy/fleetaddr.py /app/kit/fleetaddr.py
+    _kitcopy/prompts.py /app/kit/prompts.py
+
+%post -c /bin/bash
+    set -euo pipefail
+    # %post's /tmp is the build host's, often small: temporary files (pip's downloads and builds) go to a directory
+    # in the image tree instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    # Docker runs build steps without a terminal; keep apt from prompting.
+    export DEBIAN_FRONTEND=noninteractive
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    apt-get -o APT::Sandbox::User=root update
+    apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        iptables iproute2 dnsutils curl ca-certificates git build-essential procps jq nodejs npm
+    rm -rf /var/lib/apt/lists/*
+
+    # The agent may build its control plane on any of these; the firewall makes a run-time install impossible.
+    pip install --no-cache-dir \
+        aiohttp==3.14.3 uvloop==0.22.1 httpx==0.28.1 uvicorn==0.34.0 fastapi==0.115.6 \
+        orjson==3.10.13 numpy==2.2.1 pulp==2.9.0 sortedcontainers==2.4.0
+
+    # Breakwater seeds the task workspace from the image's /app and starts commands there (Apptainer has no
+    # WORKDIR).
+    mkdir -p /app
+    cd /app
+    cp /app/reference_cp.py /app/control_plane.py
+    chmod +x /app/*.sh
+
+    # apt is removed last so the firewall cannot be worked around by a stale source list.
+    rm -rf /etc/apt/sources.list*
+
+    # The coding-agent CLI is installed by Breakwater (breakwater/apptainer/install_cli.py), not here.
+    rm -rf /opt/build-tmp

@@ -1,0 +1,157 @@
+# The midtrain-for-rl task runtime (midtrain-for-rl:local) as an Apptainer image: a step-for-step translation of
+# the `agent` target of tests/rl_eval/Dockerfile and the stages it is built from (vendor-check, runtime), which
+# environment/Dockerfile only tags. Same base image, pins and steps, for hosts without Docker. Build it with
+# environment/build-apptainer.sh, which stages the files the Docker build takes from its context (tests/rl_eval).
+# GB300: native Grace ARM64 userspace and CUDA 13. The base is pinned by digest only, since Apptainer refuses a
+# reference with both a tag and a digest: it is lmsysorg/sglang:v0.5.15.post1-cu130, an arm64 image.
+
+# Validate the vendored slime snapshot in a disposable stage; grading files never enter the runtime.
+Bootstrap: docker
+From: lmsysorg/sglang@sha256:00264faaade6f6fefb1d8f191147680ea49d9b03fd3871e5963bb9765412bb82
+Stage: vendor-check
+
+%files
+    vendor /src/vendor
+    verify_vendor.py /src/verify_vendor.py
+    vendor_manifest.json /src/vendor_manifest.json
+    checkpoint_check.py /src/checkpoint_check.py
+
+%post -c /bin/bash
+    set -euo pipefail
+    # %post's /tmp is the build host's, often small: temporary files (pip's downloads and builds) go to a directory
+    # in the image tree instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    mkdir -p /src
+    cd /src
+    python3 verify_vendor.py
+
+# The runtime stage with the agent target's additions (Apptainer stages cannot start from an earlier stage).
+    rm -rf /opt/build-tmp
+Bootstrap: docker
+From: lmsysorg/sglang@sha256:00264faaade6f6fefb1d8f191147680ea49d9b03fd3871e5963bb9765412bb82
+Stage: agent
+
+%files from vendor-check
+    /src/vendor /opt/midtrain-rl/vendor
+
+%files
+    requirements-midtrain.txt /opt/midtrain-rl/requirements-midtrain.txt
+    check_runtime.py /opt/midtrain-rl/check_runtime.py
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export TORCH_CUDA_ARCH_LIST=10.3
+    export OMP_NUM_THREADS=4
+    export PYTHONUNBUFFERED=1
+    export PYTHONDONTWRITEBYTECODE=1
+    export CUDA_DEVICE_MAX_CONNECTIONS=1
+    export TOKENIZERS_PARALLELISM=false
+    export PIP_CONSTRAINT=/opt/runtime-constraints.txt
+    export PYTHONPATH=/opt/midtrain-rl:/opt/midtrain-rl/vendor/slime:/opt/Megatron-LM
+    export HF_HUB_OFFLINE=1
+    export TRANSFORMERS_OFFLINE=1
+    export HF_HUB_DISABLE_TELEMETRY=1
+    # The agent target.
+    export HF_DATASETS_OFFLINE=1
+
+%post -c /bin/bash
+    set -euo pipefail
+    # %post's /tmp is the build host's, often small: temporary files (pip's downloads and builds) go to a directory
+    # in the image tree instead, removed at the end.
+    mkdir -p /opt/build-tmp
+    export TMPDIR=/opt/build-tmp
+    # The Dockerfile's build arguments, at their defaults; Docker also gives them to later steps as variables.
+    export TARGETARCH=arm64 TORCH_ARCH=10.3 NVTE_ARCH=103a
+    # Fail early if the base image is not arm64.
+    test "$(dpkg --print-architecture)" = arm64
+    export DEBIAN_FRONTEND=noninteractive TORCH_CUDA_ARCH_LIST="${TORCH_ARCH}" \
+        OMP_NUM_THREADS=4 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+        CUDA_DEVICE_MAX_CONNECTIONS=1 TOKENIZERS_PARALLELISM=false
+
+    # apt drops privileges to its _apt user for downloads; an unprivileged --fakeroot build maps only one UID,
+    # so the downloads run as (fake) root instead. This is an option of these commands, not image configuration.
+    apt-get -o APT::Sandbox::User=root update
+    apt-get -o APT::Sandbox::User=root install -y --no-install-recommends \
+        git build-essential ninja-build cmake python3-dev python3-venv \
+        libnuma-dev libz3-dev curl ca-certificates iptables numactl pciutils procps ripgrep wget
+    rm -rf /var/lib/apt/lists/*
+    # The pinned ARM64 base already fails pip check (nixl's unconditional nixl-cu12, moviepy's pillow<12, the
+    # sbsa-tagged cuSPARSELt wheel). Record it; the final check below rejects any conflict this recipe adds.
+    python3 -m pip check > /opt/base-pip-check.txt || true
+
+    # Do not let dependency resolution replace the image's CUDA/Torch kernel stack. sglang pins openai exactly;
+    # unconstrained, openai-agents would upgrade it.
+    python3 - <<'PY'
+import importlib.metadata as m
+names = ('torch', 'torchvision', 'torchaudio', 'triton', 'sglang',
+         'sgl-kernel', 'sglang-kernel', 'flashinfer-python', 'flashinfer-cubin',
+         'flashinfer-jit-cache', 'transformers', 'tilelang', 'nvidia-cutlass-dsl',
+         'openai')
+with open('/opt/runtime-constraints.txt', 'w') as out:
+    for name in names:
+        try: out.write(f'{name}=={m.version(name)}\n')
+        except m.PackageNotFoundError: pass
+PY
+    export PIP_CONSTRAINT=/opt/runtime-constraints.txt
+    export MAX_JOBS=8 \
+        TE_COMMIT=c9877beb87ad7e711e1869dd0b5062167ede447a \
+        APEX_COMMIT=10417aceddd7d5d05d7cbf7b0fc2daad1105f8b4 \
+        MEGATRON_COMMIT=1dcf0dafa884ad52ffb243625717a3471643e087 \
+        TMS_COMMIT=8d30c59ca12a68d9deccbc9c6599076a1218cbc5
+
+    # CUDA-13 TE wheels can target a newer cuBLAS; compile against this base instead.
+    NVTE_FRAMEWORK=pytorch NVTE_CUDA_ARCHS="${NVTE_ARCH}" MAX_JOBS="${MAX_JOBS}" \
+        CMAKE_BUILD_PARALLEL_LEVEL="${MAX_JOBS}" python3 -m pip install --no-build-isolation \
+        "git+https://github.com/NVIDIA/TransformerEngine.git@${TE_COMMIT}"
+    MAX_JOBS="${MAX_JOBS}" NVCC_APPEND_FLAGS="--threads 2" \
+        python3 -m pip install --no-build-isolation \
+        --config-settings "--build-option=--cpp_ext --cuda_ext --parallel ${MAX_JOBS}" \
+        "git+https://github.com/NVIDIA/apex.git@${APEX_COMMIT}"
+    TMS_CUDA_MAJOR=13 MAX_JOBS="${MAX_JOBS}" python3 -m pip install \
+        "git+https://github.com/zhuzilin/torch_memory_saver.git@${TMS_COMMIT}"
+
+    mkdir -p /opt/midtrain-rl
+    cd /opt/midtrain-rl
+    git clone https://github.com/NVIDIA/Megatron-LM.git /opt/Megatron-LM
+    cd /opt/Megatron-LM
+    git checkout "${MEGATRON_COMMIT}"
+    git apply --check /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron.patch
+    git apply /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron.patch
+    git apply --check /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron-sglang-aligned.patch
+    git apply /opt/midtrain-rl/vendor/slime/docker/patch/latest/megatron-sglang-aligned.patch
+    python3 -m pip install --no-deps -e .
+    cd /opt/midtrain-rl
+
+    # Use the upstream ARM64 router, not Slime's x86-only custom router wheel. NumPy 1.26.4 also needs the base's
+    # cupy and tifffile at releases that accept it; openai-agents 0.4.2 is the newest release that accepts sglang's
+    # openai 2.6.1.
+    python3 -m pip install --ignore-installed 'PyJWT>=2.8.0'
+    python3 -m pip install -r vendor/slime/requirements.txt \
+        'ray[default]==2.58.0' sglang-router==0.3.2 psutil \
+        'numpy==1.26.4' 'scipy==1.17.1' 'cupy-cuda13x==13.6.0' 'tifffile==2026.3.3' \
+        'openai-agents==0.4.2' -r requirements-midtrain.txt
+    python3 -m pip install --no-deps -e vendor/slime
+    export PYTHONPATH=/opt/midtrain-rl:/opt/midtrain-rl/vendor/slime:/opt/Megatron-LM
+
+    # Keep imported source usable by the unprivileged agent and remove upstream agent hooks.
+    rm -rf /opt/Megatron-LM/.agents /opt/Megatron-LM/.claude /opt/Megatron-LM/.cursorrules /opt/Megatron-LM/skills
+    find /opt/Megatron-LM \( -name AGENTS.md -o -name CLAUDE.md \) -delete
+    make -C /opt/Megatron-LM/megatron/core/datasets
+    python3 -c 'from megatron.core.datasets import helpers_cpp'
+    { python3 -m pip check > /tmp/pip-check.txt || true; }
+    if grep -vxF -e 'No broken requirements found.' -f /opt/base-pip-check.txt /tmp/pip-check.txt; then
+        echo 'pip check: new conflicts above; base image conflicts are in /opt/base-pip-check.txt' >&2
+        exit 1
+    fi
+    rm /tmp/pip-check.txt
+    python3 check_runtime.py --image-only
+    python3 vendor/slime/train.py --help > /opt/slime-help.txt
+    python3 -m pip freeze > /opt/training-packages.txt
+
+    # The agent target. Breakwater seeds the task tree into /app and starts commands there (Apptainer has no
+    # WORKDIR); the base model and corpora are mounted at run time.
+    mkdir -p /app
+
+    # The coding-agent CLI is installed by Breakwater (breakwater/apptainer/install_cli.py), not here.
+    rm -rf /opt/build-tmp

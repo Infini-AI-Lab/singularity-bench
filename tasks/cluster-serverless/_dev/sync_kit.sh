@@ -19,7 +19,7 @@ cp "$T/_kit"/{controller.py,receipts.py,prompts.py,loadgen.py,response_io.py,loo
 cp "$T/_kit"/{simmanager.py,sim_fabric.py,kv_layout.py,manager.py,worker.py,inference_audit.py,telemetry.py,telemetry_scheduler.py,response_io.py,controller.py,nodeinfo.py,physics.py,receipts.py,prompts.py,protocol.py,manager_auth.py,looplag.py,fleetaddr.py,cluster_launch.py,fleetgen.py,engine_args.py,seeds.py,checkpoints.py,checkpoints.lock.json,runtime_compat.py,owned_processes.py} \
    "$T/environment/fleetsvc/kit/"
 
-# The grader needs the driver and the scorer (breakwater/cluster_cells.py and breakwater/score_workload.py
+# The grader needs the driver and the scorer (tests/cluster_cells.py and tests/breakwater_task.py
 # import them from tests/kit).
 cp "$T/_kit"/{loadgen.py,response_io.py,score.py,reference.py,receipts.py,prompts.py,physics.py,fleetaddr.py,traceunits.py,looplag.py,service_contract.py} "$T/tests/kit/"
 
