@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
-<link rel="stylesheet" href="assets/css/site.css?v=20261119-gpt62-2">
+<link rel="stylesheet" href="assets/css/site.css?v=20261120-ember">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -137,7 +137,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b data-count="6">6</b><span>end-to-end tasks, from pre-training to cluster orchestration</span></div>
-    <div class="stat"><b data-count="12">12</b><span>agents built from 8 frontier models and 2 harnesses</span></div>
+    <div class="stat"><b data-count="13">13</b><span>agents built from 9 frontier models and 3 harnesses</span></div>
     <div class="stat"><b data-count="1.251">1.251</b><span>top Singularity-Index, Opus 5.5 + Claude Code (human baselines = 1)</span></div>
     <div class="stat"><b><span data-count="9">9</span>/10</b><span>OWASP agentic risk categories covered by our red-teaming</span></div>
   </div>
@@ -313,12 +313,12 @@
       </div>
     </div>
     <p class="csub" data-lb-sub></p>
-    <div class="plot"><svg role="img" aria-label="Bar chart of the 12 agents ranked by Singularity Index"></svg><div class="tip" hidden></div></div>
-    <div class="cfoot"><span>Striped bars: Codex · solid bars: Claude Code · hover a bar for details</span></div>
+    <div class="plot"><svg role="img" aria-label="Bar chart of the 13 agents ranked by Singularity Index"></svg><div class="tip" hidden></div></div>
+    <div class="cfoot"><span>Solid bars: Claude Code · striped: Codex · dotted: Muse Code · hover a bar for details</span></div>
   </figure>
   <div class="finds">
-    <div class="find"><b>Top agent exceeds or is on par with every mature baseline</b>Opus 5.5 + Claude Code beats the baseline on five tasks and matches Miles on post-training (0.533 vs. 0.539). The other 11 agents average 0.64.</div>
-    <div class="find"><b>Proprietary agents lead open-weight ones</b>Proprietary agents average 0.99 and open-weight agents 0.53. The best open-weight agent is DeepSeek V4.1 Flash + Codex at 0.697.</div>
+    <div class="find"><b>Top agent exceeds or is on par with every mature baseline</b>Opus 5.5 + Claude Code beats the baseline on five tasks and matches Miles on post-training (0.533 vs. 0.539). The other 12 agents average 0.62.</div>
+    <div class="find"><b>Proprietary agents lead open-weight ones</b>Proprietary agents average 0.90 and open-weight agents 0.53. The best open-weight agent is DeepSeek V4.1 Flash + Codex at 0.697.</div>
     <div class="find"><b>The harness matters</b>Claude Code lifts GLM 5.3 from 0.373 to 0.656 and MiniMax M3 from 0.223 to 0.607, while Codex lifts DeepSeek V4.1 Flash from 0.487 to 0.697 and Kimi K3 from 0.599 to 0.624.</div>
   </div>
   <p class="pcontact">To add your agent, email its scores and API costs on all six tasks to <span data-mail></span>.</p>
@@ -343,13 +343,14 @@
       <div class="legend">
         <span><svg viewBox="-11 -7 22 14"><circle r="6" fill="#5f6368"/></svg>Claude Code</span>
         <span><svg viewBox="-11 -7 22 14"><path d="M0 -7 L7 5 L-7 5 Z" fill="#5f6368"/></svg>Codex</span>
+        <span><svg viewBox="-11 -7 22 14"><rect x="-5.5" y="-5.5" width="11" height="11" fill="#5f6368"/></svg>Muse Code</span>
         <span><svg viewBox="0 -7 22 14"><path d="M1 0H21" stroke="#252525" stroke-width="2.6" stroke-dasharray=".6 5.4" stroke-linecap="round"/></svg>Pareto frontier</span>
         <span><svg viewBox="0 -7 22 14"><path d="M0 0H22" stroke="#8a929c" stroke-width="1.4" stroke-dasharray="5 4"/></svg>Human baseline</span>
       </div>
     </div>
   </figure>
   <div class="finds">
-    <div class="find"><b>$4.36 for 0.697</b>DeepSeek V4.1 Flash + Codex is the cheapest agent and the best open-weight one.</div>
+    <div class="find"><b>$4.36 for 0.697</b>DeepSeek V4.1 Flash + Codex is the best open-weight agent, and only Muse Ember + Muse Code costs less.</div>
     <div class="find"><b>$84.52 for 0.968</b>GPT-6.1 Sol + Codex lands just below the human baseline for a fifth of Opus 5.5’s cost.</div>
     <div class="find"><b>$425.41 for 1.251</b>Opus 5.5 + Claude Code tops the frontier and is the only agent to match or beat every human baseline.</div>
   </div>
@@ -743,11 +744,11 @@
       </details>
       <details>
         <summary>Which agents are on the leaderboard?</summary>
-        <div class="ans"><p>Twelve agents that pair eight frontier models with two harnesses, Claude Code and Codex: Opus 5.5 and Opus 5 with Claude Code, GPT-6.2 Sol and GPT-6.1 Sol with Codex, and DeepSeek V4.1 Flash, GLM 5.3, Kimi K3, and MiniMax M3 with both harnesses.</p></div>
+        <div class="ans"><p>Thirteen agents that pair nine frontier models with three harnesses, Claude Code, Codex, and Muse Code: Opus 5.5 and Opus 5 with Claude Code, GPT-6.2 Sol and GPT-6.1 Sol with Codex, Muse Ember with Muse Code, and DeepSeek V4.1 Flash, GLM 5.3, Kimi K3, and MiniMax M3 with both Claude Code and Codex.</p></div>
       </details>
       <details>
         <summary>When does a submission fail?</summary>
-        <div class="ans"><p>When it produces no valid score or does not pass the task’s checks. A pre-training checkpoint, for example, must also generate the final words of private LAMBADA passages, which guards against models that leak future tokens. An inference engine must return the requested output length on at least 99% of finished requests and keep at least 95% of the reference accuracy on a hidden quality benchmark; six of the 12 engines score zero. Failed tasks count as zero in the index.</p></div>
+        <div class="ans"><p>When it produces no valid score or does not pass the task’s checks. A pre-training checkpoint, for example, must also generate the final words of private LAMBADA passages, which guards against models that leak future tokens. An inference engine must return the requested output length on at least 99% of finished requests and keep at least 95% of the reference accuracy on a hidden quality benchmark; seven of the 13 engines score zero. Failed tasks count as zero in the index.</p></div>
       </details>
       <details>
         <summary>How do you stop agents from reward hacking?</summary>
@@ -794,9 +795,9 @@
   </div>
 </footer>
 
-<script defer src="assets/js/data.js?v=20261119-gpt62-2"></script>
-<script defer src="assets/js/art.js?v=20261119-gpt62-2"></script>
-<script defer src="assets/js/charts.js?v=20261119-gpt62-2"></script>
-<script defer src="assets/js/main.js?v=20261119-gpt62-2"></script>
+<script defer src="assets/js/data.js?v=20261120-ember"></script>
+<script defer src="assets/js/art.js?v=20261120-ember"></script>
+<script defer src="assets/js/charts.js?v=20261120-ember"></script>
+<script defer src="assets/js/main.js?v=20261120-ember"></script>
 </body>
 </html>

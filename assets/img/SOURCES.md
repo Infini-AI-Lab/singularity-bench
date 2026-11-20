@@ -4,7 +4,8 @@
 
 LobeHub's lobe-icons, npm package `@lobehub/icons-static-svg` 1.101.0 (https://github.com/lobehub/lobe-icons),
 the same files as `paper/logos/lobehub/`. `anthropic.svg`, `openai.svg` and `zai.svg` are the monochrome icons;
-`deepseek.svg`, `kimi.svg` and `minimax.svg` are the `-color` variants. MIT license, "Copyright (c) 2023 LobeHub"
+`deepseek.svg`, `kimi.svg` and `minimax.svg` are the `-color` variants. `muse.svg` (Meta's Muse models) is the
+`muse-color` icon from version 1.104.0. MIT license, "Copyright (c) 2023 LobeHub"
 (full text in `logos/LICENSE.txt`). The logos themselves are trademarks of their owners.
 
 ## Sponsor logos (`sponsors/`)

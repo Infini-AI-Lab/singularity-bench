@@ -59,7 +59,7 @@
       baseline: 'Miles + Published recipe (Harbor RL)', baseShort: 'Miles', human: 0.5388, humanText: '0.539' },
     { key: 'inf', name: 'Inference', id: 'serve-glm53-flash', color: '#e37400', group: 'Deployment',
       short: 'builds an FP8 serving engine', metric: 'Income (USD per GPU-hour)', unit: 'USD / GPU-hour',
-      sub: 'simulated income in USD per GPU-hour. Bars show the score relative to SGLang; labels show the raw income. Six of the 12 engines score zero.',
+      sub: 'simulated income in USD per GPU-hour. Bars show the score relative to SGLang; labels show the raw income. Seven of the 13 engines score zero.',
       baseline: 'SGLang', baseShort: 'SGLang', human: 8.18, humanText: '8.18' },
     { key: 'clu', name: 'Cluster', id: 'cluster-serverless', color: '#12a4af', group: 'Deployment',
       short: 'orchestrates 28 models on 16 GPUs', metric: 'SLO score', unit: 'score',
@@ -80,6 +80,7 @@
     kimi: { color: '#047AFE', logo: 'assets/img/logos/kimi.svg', name: 'Moonshot AI' },
     zai: { color: '#1C7FF8', logo: 'assets/img/logos/zai.svg', name: 'Z.ai' },
     minimax: { color: '#E2167E', logo: 'assets/img/logos/minimax.svg', name: 'MiniMax' },
+    muse: { color: '#0064E0', logo: 'assets/img/logos/muse.svg', name: 'Meta' },
   };
 
   // s: displayed task scores in COLS order (null = failed or rejected); c: API cost per task in USD. pending: task keys
@@ -105,6 +106,8 @@
       ['16.76', '0.091', '0.392', null, '0.300', '0.396'], ['1.92', '1.13', '4.61', '2.88', '0.64', '2.39']),
     A('Kimi K3', 'Claude Code', 'kimi', false, '0.599', '84.58',
       ['13.60', '0.051', '0.422', null, '0.421', '0.237'], ['21.29', '10.23', '12.28', '28.69', '3.46', '8.63']),
+    A('Muse Ember', 'Muse Code', 'muse', true, '0.506', '2.24',
+      ['17.19', '0.043', '0.429', null, '0.170', '0.358'], ['0.11', '0.10', '1.46', '0.14', '0.05', '0.38']),
     A('DeepSeek V4.1 Flash', 'Claude Code', 'deepseek', false, '0.487', '4.84',
       ['20.67', '0.134', '0.437', '0.137', '0.076', '0.217'], ['0.50', '0.50', '0.91', '2.00', '0.40', '0.53']),
     A('GLM 5.3', 'Codex', 'zai', false, '0.373', '50.76',
@@ -118,6 +121,7 @@
     a.color = DEV[a.dev].color;
     a.logo = DEV[a.dev].logo;
     a.striped = a.harness === 'Codex';
+    a.dotted = a.harness === 'Muse Code';
     a.idx = +a.index;
     a.cost = +a.total;
     a.costPending = a.c.some(v => v === null);

@@ -71,13 +71,14 @@
     const tickVals = ym => { let st = ym > 1.6 ? .5 : .2; if (L && !L.v && span() / (ym / st) < 34) st = ym > 1.6 ? 1 : .5; const out = []; for (let v = 0; v <= ym + 1e-9; v += st) out.push(+v.toFixed(2)); return out; };
 
     const defs = svgEl('defs', {}, svg);
-    defs.innerHTML = Object.entries(SB.DEV).map(([k, d]) => `<pattern id="st-${k}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="${d.color}"/><rect width="2.4" height="7" fill="#fff" fill-opacity=".9"/></pattern>`).join('');
+    defs.innerHTML = Object.entries(SB.DEV).map(([k, d]) => `<pattern id="st-${k}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="${d.color}"/><rect width="2.4" height="7" fill="#fff" fill-opacity=".9"/></pattern>` +
+      `<pattern id="dt-${k}" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="${d.color}"/><circle cx="3" cy="3" r="1.3" fill="#fff" fill-opacity=".9"/></pattern>`).join('');
     const gGrid = svgEl('g', {}, svg), gBars = svgEl('g', {}, svg), gTop = svgEl('g', {}, svg);
 
     const bars = AG.map(a => {
       const g = svgEl('g', { class: 'bar' }, gBars);
-      const shape = svgEl('path', { fill: a.striped ? `url(#st-${a.dev})` : a.color }, g);
-      const edge = svgEl('path', { fill: 'none', stroke: a.color, 'stroke-width': a.striped ? 1.4 : 0 }, g);
+      const shape = svgEl('path', { fill: a.striped ? `url(#st-${a.dev})` : a.dotted ? `url(#dt-${a.dev})` : a.color }, g);
+      const edge = svgEl('path', { fill: 'none', stroke: a.color, 'stroke-width': a.striped || a.dotted ? 1.4 : 0 }, g);
       const vt = svgEl('text', { class: 'val' }, g);
       const ft = svgEl('text', { class: 'fail' }, g);
       const tile = svgEl('rect', { rx: 8, fill: '#f1f3f4' }, g);
@@ -282,8 +283,8 @@
 
     const pts = AG.map(a => {
       const g = svgEl('g', { class: 'pt' }, gPts);
-      const tri = a.harness === 'Codex';
-      const mk = svgEl('path', { d: tri ? 'M0 -10 L9 6 L-9 6 Z' : 'M-7.5 0a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0', fill: a.color, stroke: '#fff', 'stroke-width': 2, 'stroke-linejoin': 'round' }, g);
+      const tri = a.harness === 'Codex', sq = a.harness === 'Muse Code';
+      const mk = svgEl('path', { d: tri ? 'M0 -10 L9 6 L-9 6 Z' : sq ? 'M-6.5 -6.5h13v13h-13Z' : 'M-7.5 0a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0', fill: a.color, stroke: '#fff', 'stroke-width': 2, 'stroke-linejoin': 'round' }, g);
       const hit = svgEl('circle', { r: 16, class: 'hit' }, g);
       return { a, g, mk, hit, x: 0, y: 0 };
     });
